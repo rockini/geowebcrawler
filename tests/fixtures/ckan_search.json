@@ -1,0 +1,18 @@
+{"success": true, "result": {"count": 3, "results": [
+ {"id": "a1b2", "name": "grafo-stradale", "title": "Grafo stradale comunale", "notes": "Rete stradale del comune.",
+  "license_id": "cc-by-4.0", "license_title": "Creative Commons Attribution 4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "metadata_created": "2023-02-01T10:00:00", "metadata_modified": "2025-05-20T08:00:00",
+  "organization": {"title": "Comune di Esempio"}, "author": "Ufficio SIT",
+  "tags": [{"display_name": "strade"}, {"display_name": "mobilita"}],
+  "extras": [{"key": "spatial", "value": "{\"type\":\"Polygon\",\"coordinates\":[[[11.1,43.7],[11.4,43.7],[11.4,43.9],[11.1,43.9],[11.1,43.7]]]}"},
+             {"key": "holder_name", "value": "Comune di Esempio"}, {"key": "frequency", "value": "http://publications.europa.eu/resource/authority/frequency/ANNUAL"}],
+  "resources": [
+    {"url": "https://opendata.example.it/files/grafo.zip", "format": "SHP", "name": "Shapefile"},
+    {"url": "https://geo.example.it/geoserver/wfs?service=WFS&request=GetCapabilities", "format": "WFS", "name": "Servizio WFS"},
+    {"url": "https://opendata.example.it/dataset/grafo/download", "format": "GeoJSON", "name": "GeoJSON"}]},
+ {"id": "c3d4", "name": "bilancio-2024", "title": "Bilancio 2024", "notes": "Dati di bilancio.",
+  "license_id": "iodl2.0", "license_title": "Italian Open Data License v2.0",
+  "resources": [{"url": "https://opendata.example.it/files/bilancio.csv", "format": "CSV"}]},
+ {"id": "e5f6", "name": "punti-wifi", "title": "Punti WiFi", "license_id": "CC0-1.0", "type": "dataset",
+  "resources": [{"url": "https://opendata.example.it/files/wifi.kml", "format": "KML"}]}
+]}}

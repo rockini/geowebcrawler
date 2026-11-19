@@ -14,9 +14,21 @@ final class HarvestRunner
 
     public function __construct(private PDO $db, ?array $harvesters = null)
     {
-        $this->harvesters = $harvesters ?? [
-            'csw'     => fn() => new CswHarvester(),
-            'webpage' => fn() => new WebPageHarvester(),
+        $this->harvesters = $harvesters ?? self::defaultHarvesters();
+    }
+
+    /** Tipi di sorgente (gwc.source_types.code) che sanno essere raccolti. */
+    public const SUPPORTED = ['csw', 'webpage', 'ogc_service', 'ckan', 'dcat', 'stac'];
+
+    private static function defaultHarvesters(): array
+    {
+        return [
+            'csw'         => fn() => new CswHarvester(),
+            'webpage'     => fn() => new WebPageHarvester(),
+            'ogc_service' => fn() => new OgcCapabilitiesHarvester(),
+            'ckan'        => fn() => new CkanHarvester(),
+            'dcat'        => fn() => new DcatHarvester(),
+            'stac'        => fn() => new StacHarvester(),
         ];
     }
 

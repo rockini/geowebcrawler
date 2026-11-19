@@ -1,0 +1,3 @@
+{"type": "Collection", "id": "ortofoto-2023", "stac_version": "1.0.0", "title": "Ortofoto 2023", "description": "Ortofoto comunali.",
+ "license": "CC-BY-4.0", "extent": {"spatial": {"bbox": [[11.1, 43.7, 11.4, 43.9]]}, "temporal": {"interval": [["2023-05-01T00:00:00Z", null]]}},
+ "links": [{"rel": "item", "href": "./items/tile1.json"}]}

@@ -1,0 +1,2 @@
+{"type": "Catalog", "id": "root", "stac_version": "1.0.0", "description": "Catalogo statico",
+ "links": [{"rel": "child", "href": "./sub/catalog.json"}, {"rel": "self", "href": "./catalog.json"}]}

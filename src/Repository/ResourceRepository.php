@@ -180,15 +180,19 @@ final class ResourceRepository
         if ($text === null || trim($text) === '') {
             return null;
         }
-        $t = ' ' . strtolower(preg_replace('/[\s_]+/', ' ', $text)) . ' ';
+        $t = ' ' . strtolower(preg_replace('/\s+/', ' ', $text)) . ' ';
+        // vince la variante piu' lunga trovata: cosi' "cc-by-sa-4.0" non viene preso per "cc-by"
+        $best = null;
+        $bestLen = 0;
         foreach ($this->licenses() as $l) {
             foreach ($l['needles'] as $needle) {
-                if (str_contains($t, $needle)) {
-                    return $l['id'];
+                if (strlen($needle) > $bestLen && str_contains($t, $needle)) {
+                    $best = $l['id'];
+                    $bestLen = strlen($needle);
                 }
             }
         }
-        return null;
+        return $best;
     }
 
     private function licenses(): array

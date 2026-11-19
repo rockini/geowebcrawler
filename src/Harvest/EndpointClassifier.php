@@ -127,4 +127,39 @@ final class EndpointClassifier
             label: $label !== null && trim($label) !== '' ? trim($label) : null,
         );
     }
+
+    /**
+     * Converte il nome di un formato come scritto nei cataloghi ("ESRI Shapefile", "SHP", URI EU
+     * http://publications.europa.eu/resource/authority/file-type/GEOJSON, "image/tiff"...) nel codice di gwc.formats.
+     */
+    public static function formatCode(?string $name): ?string
+    {
+        if ($name === null || trim($name) === '') {
+            return null;
+        }
+        $n = strtolower(trim(preg_replace('~^.*/file-type/~i', '', $name)));
+        return match (true) {
+            str_contains($n, 'shape') || $n === 'shp' || $n === 'zip shp' => 'shp',
+            str_contains($n, 'geojson') || str_contains($n, 'geo+json')   => 'geojson',
+            str_contains($n, 'geopackage') || $n === 'gpkg'              => 'gpkg',
+            str_contains($n, 'gml')                                      => 'gml',
+            str_contains($n, 'kmz')                                      => 'kmz',
+            str_contains($n, 'kml')                                      => 'kml',
+            str_contains($n, 'cloud-optimized') || $n === 'cog'          => 'cog',
+            str_contains($n, 'tif')                                      => 'geotiff',
+            str_contains($n, 'dxf') || str_contains($n, 'dwg')           => 'dxf',
+            str_contains($n, 'netcdf') || $n === 'nc'                    => 'netcdf',
+            str_contains($n, 'parquet')                                  => 'parquet',
+            str_contains($n, 'flatgeobuf') || $n === 'fgb'               => 'fgb',
+            str_contains($n, 'zarr')                                     => 'zarr',
+            preg_match('/\bla[sz]\b/', $n) === 1                        => 'las',
+            str_contains($n, 'jp2') || str_contains($n, 'jpeg2000')      => 'jp2',
+            str_contains($n, 'csv')                                      => 'csv',
+            str_contains($n, 'xls') || str_contains($n, 'spreadsheet')   => 'xlsx',
+            str_contains($n, '7z')                                       => '7z',
+            str_contains($n, 'zip')                                      => 'zip',
+            str_contains($n, 'pdf')                                      => 'pdf',
+            default                                                      => null,
+        };
+    }
 }

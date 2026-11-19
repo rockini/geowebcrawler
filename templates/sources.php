@@ -17,7 +17,7 @@
       </form>
     </td>
     <td>
-      <?php if (in_array($s['source_type'], ['csw', 'webpage'], true)): ?>
+      <?php if (in_array($s['source_type'], \GeoWebCrawler\Harvest\HarvestRunner::SUPPORTED, true)): ?>
       <form method="post" class="inline" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='In corso...'"><?= V::csrfField() ?>
         <input type="hidden" name="action" value="harvest"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
         <button>Raccogli</button>
@@ -42,6 +42,9 @@
   <label class="wide">URL <input name="url" type="url" required placeholder="https://.../csw oppure l'indirizzo di una pagina web"></label>
   <label class="wide">Descrizione <input name="description"></label>
   <label class="wide">Parametri (JSON) <input name="params" value="{}" class="mono">
-    <small>CSW: <code>{"max_records": 500, "constraint": "AnyText like '%idro%'"}</code> · Pagina web: <code>{"depth": 1, "max_pages": 20}</code></small></label>
+    <small>Facoltativi. CSW: <code>{"max_records": 500, "constraint": "AnyText like '%idro%'", "schema": "dcat"}</code> ·
+      Pagina web: <code>{"depth": 1}</code> · Servizio OGC: <code>{"services": ["WMS","WFS"]}</code> ·
+      CKAN: <code>{"q": "idrografia", "fq": "organization:regione-toscana"}</code> · DCAT/STAC: <code>{"max_records": 500}</code>.
+      Tutti i parametri sono descritti nel README.</small></label>
   <div><button>Aggiungi</button></div>
 </form>

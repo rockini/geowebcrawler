@@ -12,7 +12,8 @@ use GeoWebCrawler\Http\HttpClient;
  * Parametri della sorgente (campo params):
  *   max_records  numero massimo di record da leggere (default 1000)
  *   page_size    record per richiesta (default 50)
- *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso" oppure "dc"
+ *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso", "dc"
+ *                oppure "dcat" (GeoDCAT-AP / DCAT-AP, offerto per esempio da GeoNetwork 4)
  *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
  *   method       "post" (default) o "get"
  */
@@ -20,11 +21,13 @@ final class CswHarvester implements Harvester
 {
     private const SCHEMA_ISO = 'http://www.isotc211.org/2005/gmd';
     private const SCHEMA_DC  = 'http://www.opengis.net/cat/csw/2.0.2';
+    private const SCHEMA_DCAT = 'http://www.w3.org/ns/dcat#';
 
     public function __construct(
         private HttpClient $http = new HttpClient(),
         private Iso19139Parser $iso = new Iso19139Parser(),
         private DublinCoreParser $dc = new DublinCoreParser(),
+        private Rdf\DcatMapper $dcat = new Rdf\DcatMapper(),
     ) {}
 
     public function harvest(array $source, callable $log): \Generator
@@ -37,13 +40,14 @@ final class CswHarvester implements Harvester
         $method   = strtolower($p['method'] ?? 'post');
         $cql      = $p['constraint'] ?? null;
 
-        $useIso = $schema !== 'dc';
+        $useDcat = $schema === 'dcat';
+        $useIso = !$useDcat && $schema !== 'dc';
         $start = 1;
         $read = 0;
 
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
-            $xml = $this->getRecords($url, $method, $useIso, $start, $n, $cql, $log);
+            $xml = $this->getRecords($url, $method, $useDcat ? self::SCHEMA_DCAT : ($useIso ? self::SCHEMA_ISO : self::SCHEMA_DC), $start, $n, $cql, $log);
             $doc = $xml !== null ? Xml::load($xml) : null;
             $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
 
@@ -70,7 +74,29 @@ final class CswHarvester implements Harvester
             $next    = (int) $results->getAttribute('nextRecord');
             if ($start === 1) {
                 $log(sprintf('Record disponibili nel catalogo: %d (ne leggo al massimo %d, formato %s)',
-                    $matched, $max, $useIso ? 'ISO 19139' : 'Dublin Core'));
+                    $matched, $max, $useDcat ? 'GeoDCAT-AP' : ($useIso ? 'ISO 19139' : 'Dublin Core')));
+            }
+
+            if ($useDcat) {
+                // ogni record e' un documento rdf:RDF (o un nodo DCAT): si legge come grafo RDF
+                $records = 0;
+                foreach ($results->childNodes as $child) {
+                    if (!$child instanceof DOMElement) {
+                        continue;
+                    }
+                    $records++;
+                    $graph = (new Rdf\RdfXmlParser())->parse($child);
+                    foreach ($this->dcat->records($graph, 'GeoDCAT-AP (CSW)') as $record) {
+                        $record->metadataUrl ??= $this->recordByIdUrl($url, $record->externalId, self::SCHEMA_DCAT);
+                        yield $record;
+                    }
+                }
+                $read += $records;
+                if ($records === 0 || $next <= 0 || ($matched > 0 && $next > $matched) || $next <= $start) {
+                    break;
+                }
+                $start = $next;
+                continue;
             }
 
             $nodes = $useIso
@@ -92,7 +118,7 @@ final class CswHarvester implements Harvester
                     $log("Record #$read ignorato: titolo mancante");
                     continue;
                 }
-                $record->metadataUrl = $this->recordByIdUrl($url, $record->externalId, $useIso);
+                $record->metadataUrl = $this->recordByIdUrl($url, $record->externalId, $useIso ? self::SCHEMA_ISO : self::SCHEMA_DC);
                 yield $record;
             }
 
@@ -103,9 +129,9 @@ final class CswHarvester implements Harvester
         }
     }
 
-    private function getRecords(string $url, string $method, bool $iso, int $start, int $n, ?string $cql, callable $log): ?string
+    private function getRecords(string $url, string $method, string $schema, int $start, int $n, ?string $cql, callable $log): ?string
     {
-        $schema = $iso ? self::SCHEMA_ISO : self::SCHEMA_DC;
+        $iso = $schema === self::SCHEMA_ISO;
         $typeNames = $iso ? 'gmd:MD_Metadata' : 'csw:Record';
 
         if ($method === 'get') {
@@ -152,7 +178,7 @@ final class CswHarvester implements Harvester
         return null;
     }
 
-    private function recordByIdUrl(string $url, ?string $id, bool $iso): ?string
+    private function recordByIdUrl(string $url, ?string $id, string $schema): ?string
     {
         if ($id === null) {
             return null;
@@ -160,7 +186,7 @@ final class CswHarvester implements Harvester
         $base = preg_replace('/\?.*$/', '', $url);
         return $base . '?' . http_build_query([
             'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecordById',
-            'id' => $id, 'elementSetName' => 'full', 'outputSchema' => $iso ? self::SCHEMA_ISO : self::SCHEMA_DC,
+            'id' => $id, 'elementSetName' => 'full', 'outputSchema' => $schema,
         ]);
     }
 }

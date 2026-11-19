@@ -1,0 +1,4 @@
+{"type": "Catalog", "id": "stac-test", "stac_version": "1.0.0", "description": "STAC API di prova",
+ "conformsTo": ["https://api.stacspec.org/v1.0.0/core", "https://api.stacspec.org/v1.0.0/collections"],
+ "links": [{"rel": "self", "href": "http://127.0.0.1:8765/stac"}, {"rel": "data", "href": "http://127.0.0.1:8765/stac/collections"},
+           {"rel": "search", "href": "http://127.0.0.1:8765/stac/search", "method": "POST"}]}

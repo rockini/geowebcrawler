@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wfs:WFS_Capabilities version="2.0.0" xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <ows:ServiceIdentification>
+    <ows:Title>Geoportale Regionale - WFS</ows:Title>
+    <ows:Abstract>Dati vettoriali scaricabili.</ows:Abstract>
+    <ows:ServiceType>WFS</ows:ServiceType>
+    <ows:Fees>NONE</ows:Fees>
+    <ows:AccessConstraints>IODL 2.0</ows:AccessConstraints>
+  </ows:ServiceIdentification>
+  <ows:ServiceProvider><ows:ProviderName>Regione Esempio</ows:ProviderName></ows:ServiceProvider>
+  <wfs:FeatureTypeList>
+    <wfs:FeatureType>
+      <wfs:Name>idro:fiumi</wfs:Name>
+      <wfs:Title>Fiumi</wfs:Title>
+      <wfs:Abstract>Reticolo idrografico principale.</wfs:Abstract>
+      <ows:Keywords><ows:Keyword>idrografia</ows:Keyword><ows:Keyword>fiumi</ows:Keyword></ows:Keywords>
+      <wfs:DefaultCRS>urn:ogc:def:crs:EPSG::6707</wfs:DefaultCRS>
+      <wfs:OtherCRS>urn:ogc:def:crs:EPSG::4326</wfs:OtherCRS>
+      <ows:WGS84BoundingBox><ows:LowerCorner>10.0 43.0</ows:LowerCorner><ows:UpperCorner>11.0 44.0</ows:UpperCorner></ows:WGS84BoundingBox>
+      <wfs:MetadataURL xlink:href="https://geo.regione.example/metadati/fiumi.xml"/>
+    </wfs:FeatureType>
+    <wfs:FeatureType>
+      <wfs:Name>amm:comuni</wfs:Name>
+      <wfs:Title>Limiti comunali</wfs:Title>
+      <wfs:DefaultCRS>urn:ogc:def:crs:EPSG::6707</wfs:DefaultCRS>
+      <ows:WGS84BoundingBox><ows:LowerCorner>9.5 42.2</ows:LowerCorner><ows:UpperCorner>12.5 44.5</ows:UpperCorner></ows:WGS84BoundingBox>
+    </wfs:FeatureType>
+  </wfs:FeatureTypeList>
+</wfs:WFS_Capabilities>
