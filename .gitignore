@@ -1,0 +1,9 @@
+/vendor/
+/config/config.php
+/config/sources.json
+/storage/downloads/*
+/storage/logs/*
+!/storage/**/.gitkeep
+.idea/
+.vscode/
+Thumbs.db

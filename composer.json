@@ -1,0 +1,16 @@
+{
+    "name": "geowebcrawler/geowebcrawler",
+    "description": "Strumento web in PHP per cercare, testare, analizzare e scaricare dati geografici disponibili sul web (CSW, servizi OGC, file scaricabili).",
+    "type": "project",
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-pdo_pgsql": "*",
+        "ext-curl": "*",
+        "ext-dom": "*",
+        "ext-mbstring": "*"
+    },
+    "autoload": {
+        "psr-4": { "GeoWebCrawler\\": "src/" }
+    }
+}

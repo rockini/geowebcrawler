@@ -1,0 +1,23 @@
+{
+    "_info": "Sorgenti di partenza (gli URL degli esempi sono da verificare). Copia in sources.json e modifica. Tipi: csw, webpage, ckan (feed, blog, social nella versione estesa).",
+    "sources": [
+        {
+            "name": "Repertorio Nazionale Dati Territoriali (RNDT) - CSW",
+            "type": "csw",
+            "url": "https://geodati.gov.it/RNDT/csw",
+            "params": { "max_records": 500 }
+        },
+        {
+            "name": "Geoportale INSPIRE - CSW",
+            "type": "csw",
+            "url": "https://inspire-geoportal.ec.europa.eu/srv/eng/csw"
+        },
+        {
+            "name": "Esempio pagina web con link a dati",
+            "type": "webpage",
+            "url": "https://www.example.org/opendata/cartografia",
+            "params": { "depth": 1 },
+            "enabled": false
+        }
+    ]
+}
