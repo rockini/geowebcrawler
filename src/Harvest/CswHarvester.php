@@ -15,13 +15,17 @@ use GeoWebCrawler\Http\HttpClient;
  *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso", "dc"
  *                oppure "dcat" (GeoDCAT-AP / DCAT-AP, offerto per esempio da GeoNetwork 4)
  *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
- *   method       "post" (default) o "get"
+ *   method       "post" o "get" (di default si provano entrambi)
+ *   debug        true: nel log anche l'inizio della risposta del server a ogni tentativo fallito
  */
 final class CswHarvester implements Harvester
 {
     private const SCHEMA_ISO = 'http://www.isotc211.org/2005/gmd';
     private const SCHEMA_DC  = 'http://www.opengis.net/cat/csw/2.0.2';
     private const SCHEMA_DCAT = 'http://www.w3.org/ns/dcat#';
+
+    /** Descrizione dell'ultima richiesta GetRecords (URL completo per GET, URL e corpo per POST). */
+    private string $lastRequest = '';
 
     public function __construct(
         private HttpClient $http = new HttpClient(),
@@ -65,6 +69,14 @@ final class CswHarvester implements Harvester
         $start = 1;
         $read = 0;
         $errors = [];
+        $debug = !empty($p['debug']);
+
+        // Come farebbe un browser: prima GetCapabilities (verifica il servizio e apre la sessione,
+        // che alcuni GeoNetwork richiedono), poi GetRecords
+        $caps = $this->http->get($url . (str_contains($url, '?') ? '&' : '?') . 'service=CSW&version=2.0.2&request=GetCapabilities');
+        if (!$caps->ok()) {
+            $log('GetCapabilities non risponde (' . $caps->problem() . '): provo comunque GetRecords');
+        }
 
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
@@ -79,6 +91,9 @@ final class CswHarvester implements Harvester
                 }
                 $errors[] = sprintf('%s %s %s%s: %s', $useIso ? 'ISO' : 'DC', strtoupper($method), $typeNames,
                     $matchAll ? ' con filtro' : '', mb_substr($error, 0, 200));
+                // dettaglio della richiesta, per poterla ripetere a mano (browser o curl)
+                $log('Tentativo fallito: ' . end($errors) . "\n    " . $this->lastRequest
+                    . ($debug ? "\n    Risposta: " . mb_substr((string) $xml, 0, 1000) : ''));
                 array_shift($variants);
                 if (!$variants && $useIso && $schema === 'auto') {
                     $log('ISO 19139 non disponibile, riprovo con Dublin Core. Tentativi: ' . implode(' ; ', $errors));
@@ -188,7 +203,10 @@ final class CswHarvester implements Harvester
             if ($cql) {
                 $q += ['constraintLanguage' => 'CQL_TEXT', 'constraint_language_version' => '1.1.0', 'constraint' => $cql];
             }
-            $res = $this->http->get($url . (str_contains($url, '?') ? '&' : '?') . http_build_query($q));
+            // codifica RFC 3986 (spazi come %20), identica a un indirizzo scritto nel browser
+            $full = $url . (str_contains($url, '?') ? '&' : '?') . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
+            $this->lastRequest = "GET $full";
+            $res = $this->http->get($full);
         } else {
             if ($matchAll) {
                 // nel POST si usa un filtro OGC, supportato da tutti i cataloghi
@@ -210,6 +228,7 @@ final class CswHarvester implements Harvester
                   </csw:Query>
                 </csw:GetRecords>
                 XML;
+            $this->lastRequest = "POST $url\n    " . preg_replace('/\s+/', ' ', $body);
             $res = $this->http->post($url, $body);
         }
 
