@@ -13,12 +13,14 @@ if (isset($pages[$path])) {
     return true;
 }
 
-// Simula GeoNetwork che va in errore con typeNames=gmd:MD_Metadata o con parametri KVP nell'URL di un POST
+// Simula GeoNetwork 4 che va in NullPointerException con typeNames=gmd:MD_Metadata, con parametri KVP
+// nell'URL di un POST o quando la richiesta non ha un filtro (Constraint)
 if ($path === '/csw-strict') {
     $body = file_get_contents('php://input');
     $kvp = array_change_key_case($_GET, CASE_LOWER);
     if (str_contains($body, 'typeNames="gmd:MD_Metadata"') || ($kvp['typenames'] ?? '') === 'gmd:MD_Metadata'
-        || ($body !== '' && isset($kvp['request']))) {
+        || ($body !== '' && isset($kvp['request']))
+        || ($body !== '' && !str_contains($body, 'Constraint')) || ($body === '' && !isset($kvp['constraint']))) {
         header('Content-Type: application/xml');
         echo '<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows" version="1.2.0"><ows:Exception exceptionCode="NoApplicableCode"><ows:ExceptionText>java.lang.NullPointerException</ows:ExceptionText></ows:Exception></ows:ExceptionReport>';
         return true;
