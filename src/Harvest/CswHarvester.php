@@ -47,19 +47,29 @@ final class CswHarvester implements Harvester
         $forced = isset($p['method']);
         // varianti della richiesta da provare in ordine se il catalogo risponde con un errore:
         // typeNames "csw:Record" e' la forma piu' compatibile (la usano GeoNetwork, OWSLib, QGIS)
-        $attempts = fn(bool $iso) => array_values(array_filter([
-            ['post', 'csw:Record'], ['post', $iso ? 'gmd:MD_Metadata' : null],
-            ['get', 'csw:Record'], ['get', $iso ? 'gmd:MD_Metadata' : null],
-        ], fn($a) => $a[1] !== null && (!$forced || $a[0] === $method)));
+        // Alcuni GeoNetwork 4 vanno in NullPointerException se la richiesta non ha un filtro:
+        // in quel caso si riprova con un filtro che include tutto (AnyText like '%').
+        $attempts = function (bool $iso) use ($forced, $method, $cql): array {
+            $all = [];
+            foreach (['post', 'get'] as $m) {
+                foreach (array_filter(['csw:Record', $iso ? 'gmd:MD_Metadata' : null]) as $t) {
+                    foreach ($cql ? [false] : [false, true] as $matchAll) {
+                        $all[] = [$m, $t, $matchAll];
+                    }
+                }
+            }
+            return array_values(array_filter($all, fn($a) => !$forced || $a[0] === $method));
+        };
         $variants = $attempts($useIso);
-        [$method, $typeNames] = $variants[0];
+        [$method, $typeNames, $matchAll] = $variants[0];
         $start = 1;
         $read = 0;
         $errors = [];
 
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
-            $xml = $this->getRecords($url, $method, $useDcat ? self::SCHEMA_DCAT : ($useIso ? self::SCHEMA_ISO : self::SCHEMA_DC), $typeNames, $start, $n, $cql, $log);
+            $xml = $this->getRecords($url, $method, $useDcat ? self::SCHEMA_DCAT : ($useIso ? self::SCHEMA_ISO : self::SCHEMA_DC),
+                $typeNames, $start, $n, $cql, $matchAll, $log);
             $doc = $xml !== null ? Xml::load($xml) : null;
             $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
 
@@ -67,7 +77,8 @@ final class CswHarvester implements Harvester
                 if ($start > 1) {
                     throw new \RuntimeException("Errore dal catalogo CSW a partire dal record $start: $error");
                 }
-                $errors[] = sprintf('%s %s %s: %s', $useIso ? 'ISO' : 'DC', strtoupper($method), $typeNames, $error);
+                $errors[] = sprintf('%s %s %s%s: %s', $useIso ? 'ISO' : 'DC', strtoupper($method), $typeNames,
+                    $matchAll ? ' con filtro' : '', mb_substr($error, 0, 200));
                 array_shift($variants);
                 if (!$variants && $useIso && $schema === 'auto') {
                     $log('ISO 19139 non disponibile, riprovo con Dublin Core. Tentativi: ' . implode(' ; ', $errors));
@@ -78,11 +89,12 @@ final class CswHarvester implements Harvester
                 if (!$variants) {
                     throw new \RuntimeException('Errore dal catalogo CSW. Tentativi: ' . implode(' ; ', $errors));
                 }
-                [$method, $typeNames] = $variants[0];
+                [$method, $typeNames, $matchAll] = $variants[0];
                 continue;
             }
             if ($start === 1 && $errors) {
-                $log('Richiesta accettata nella forma ' . strtoupper($method) . " typeNames=$typeNames dopo: " . implode(' ; ', $errors));
+                $log('Richiesta accettata nella forma ' . strtoupper($method) . " typeNames=$typeNames"
+                    . ($matchAll ? ' con filtro AnyText' : '') . ' dopo: ' . implode(' ; ', $errors));
             }
 
             $xp = Xml::xpath($doc);
@@ -126,7 +138,7 @@ final class CswHarvester implements Harvester
                 if ($start === 1 && $useIso && $schema === 'auto' && $matched > 0) {
                     $log('Nessun record ISO nella risposta: riprovo con Dublin Core');
                     $useIso = false;
-                    [$method, $typeNames] = $attempts(false)[0];
+                    [$method, $typeNames, $matchAll] = $attempts(false)[0];
                     continue;
                 }
                 break;
@@ -150,8 +162,12 @@ final class CswHarvester implements Harvester
         }
     }
 
-    private function getRecords(string $url, string $method, string $schema, string $typeNames, int $start, int $n, ?string $cql, callable $log): ?string
+    private function getRecords(string $url, string $method, string $schema, string $typeNames, int $start, int $n,
+                                ?string $cql, bool $matchAll, callable $log): ?string
     {
+        if ($matchAll && !$cql) {
+            $cql = "AnyText like '%'";
+        }
 
         if ($method === 'get') {
             $q = [
@@ -165,9 +181,16 @@ final class CswHarvester implements Harvester
             }
             $res = $this->http->get($url . (str_contains($url, '?') ? '&' : '?') . http_build_query($q));
         } else {
-            $constraint = $cql
-                ? '<csw:Constraint version="1.1.0"><csw:CqlText>' . htmlspecialchars($cql, ENT_XML1) . '</csw:CqlText></csw:Constraint>'
-                : '';
+            if ($matchAll) {
+                // nel POST si usa un filtro OGC, supportato da tutti i cataloghi
+                $constraint = '<csw:Constraint version="1.1.0"><ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">'
+                    . '<ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\\"><ogc:PropertyName>AnyText</ogc:PropertyName>'
+                    . '<ogc:Literal>%</ogc:Literal></ogc:PropertyIsLike></ogc:Filter></csw:Constraint>';
+            } else {
+                $constraint = $cql
+                    ? '<csw:Constraint version="1.1.0"><csw:CqlText>' . htmlspecialchars($cql, ENT_XML1) . '</csw:CqlText></csw:Constraint>'
+                    : '';
+            }
             $body = <<<XML
                 <?xml version="1.0" encoding="UTF-8"?>
                 <csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" xmlns:gmd="http://www.isotc211.org/2005/gmd"
