@@ -3,6 +3,7 @@
 // Uso:  php tests/parsers-test.php
 declare(strict_types=1);
 
+define('GWC_SKIP_CONFIG', true);
 require __DIR__ . '/../src/bootstrap.php';
 
 use GeoWebCrawler\Harvest\{DublinCoreParser, EndpointClassifier, Iso19139Parser, WebPageHarvester, Xml};
