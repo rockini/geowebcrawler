@@ -119,7 +119,13 @@ final class CswHarvester implements Harvester
 
             foreach ($nodes as $node) {
                 $read++;
-                $record = $useIso ? $this->iso->parse($xp, $node) : $this->dc->parse($xp, $node);
+                try {
+                    $record = $useIso ? $this->iso->parse($xp, $node) : $this->dc->parse($xp, $node);
+                } catch (\Throwable $e) {
+                    // un record con metadati anomali non deve fermare la raccolta
+                    $log("Record #$read non leggibile: " . $e->getMessage());
+                    continue;
+                }
                 if ($record === null) {
                     $log("Record #$read ignorato: titolo mancante");
                     continue;
@@ -148,8 +154,11 @@ final class CswHarvester implements Harvester
                 'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecords',
                 'typeNames' => $typeNames, 'resultType' => 'results', 'elementSetName' => 'full',
                 'outputSchema' => $schema, 'startPosition' => $start, 'maxRecords' => $n,
-                'namespace' => str_starts_with($typeNames, 'gmd:') ? 'xmlns(gmd=' . self::SCHEMA_ISO . ')' : 'xmlns(csw=' . self::SCHEMA_DC . ')',
             ];
+            // il parametro namespace serve solo per il prefisso gmd: (alcuni server non lo gradiscono)
+            if (str_starts_with($typeNames, 'gmd:')) {
+                $q['namespace'] = 'xmlns(gmd=' . self::SCHEMA_ISO . ')';
+            }
             if ($cql) {
                 $q += ['constraintLanguage' => 'CQL_TEXT', 'constraint_language_version' => '1.1.0', 'constraint' => $cql];
             }

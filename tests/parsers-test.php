@@ -60,6 +60,9 @@ check('Classifica ArcGIS REST', $c->classify('https://x.it/arcgis/rest/services/
 check('Classifica OGC API', $c->classify('https://x.it/ogc/collections/fiumi/items')?->type, 'ogcapi_features');
 check('Ignora PDF in modalita\' rigorosa', $c->classify('https://x.it/a.pdf', null, null, null, true), null);
 
+$nd = Xml::load('<a><c>3003</c><c>2020</c></a>');
+check('Xml::texts restituisce stringhe anche per valori numerici', Xml::texts(Xml::xpath($nd), '//c'), ['3003', '2020']);
+check('EPSG da codice solo numerico', Xml::epsg(Xml::texts(Xml::xpath($nd), '//c')), [3003, 2020]);
 check('CSW: URL senza parametri OGC', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://geo.example/geonetwork/srv/eng/csw?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities'), 'https://geo.example/geonetwork/srv/eng/csw');
 check('CSW: parametri del server conservati', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://x/cgi?map=cat.map&request=GetCapabilities'), 'https://x/cgi?map=cat.map');
 

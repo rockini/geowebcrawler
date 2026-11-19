@@ -72,7 +72,8 @@ final class Xml
                 }
             }
         }
-        return array_keys($out);
+        // array_map('strval'): PHP trasforma le chiavi numeriche ("3003", "2020") in interi
+        return array_map('strval', array_keys($out));
     }
 
     /** Normalizza una data ISO (anche con orario) in YYYY-MM-DD; null se non riconosciuta. */
@@ -98,6 +99,7 @@ final class Xml
     {
         $codes = [];
         foreach ($values as $v) {
+            $v = (string) $v;
             if (preg_match('~epsg\D{0,4}(?:0/)?(\d{4,6})~i', $v, $m) || preg_match('~^\s*(\d{4,6})\s*$~', $v, $m)) {
                 $codes[(int) $m[1]] = true;
             }
