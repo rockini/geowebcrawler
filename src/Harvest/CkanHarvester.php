@@ -15,7 +15,7 @@ use GeoWebCrawler\Http\HttpClient;
  *                e scarta quelli senza link a dati o servizi geografici
  *   q            ricerca libera (sintassi Solr), es. "idrografia"
  *   fq           filtro Solr aggiuntivo, es. "organization:regione-toscana"
- *   max_records  numero massimo di dataset (default 1000)
+ *   max_records  numero massimo di dataset (default: harvest.max_records in config.php, 25000)
  *   page_size    dataset per richiesta (default 100, massimo 1000)
  */
 final class CkanHarvester implements Harvester
@@ -46,7 +46,7 @@ final class CkanHarvester implements Harvester
         $p = $source['params'] ?? [];
         [$api, $portal] = self::apiUrl($source['url']);
         $geoOnly  = (bool) ($p['geo_only'] ?? true);
-        $max      = max(1, (int) ($p['max_records'] ?? 1000));
+        $max      = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
         $pageSize = max(1, min(1000, (int) ($p['page_size'] ?? 100)));
 
         $fq = [];

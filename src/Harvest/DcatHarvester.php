@@ -12,8 +12,8 @@ use GeoWebCrawler\Http\HttpClient;
  * seguendo la paginazione Hydra (es. portali CKAN con ckanext-dcat: .../catalog.rdf?page=1).
  *
  * Parametri della sorgente (campo params):
- *   max_records  numero massimo di dataset (default 5000)
- *   max_pages    numero massimo di pagine da seguire (default 200)
+ *   max_records  numero massimo di dataset (default: harvest.max_records in config.php, 25000)
+ *   max_pages    numero massimo di pagine da seguire (default 1000)
  *   standard     nome del profilo da registrare nei metadati (default "DCAT-AP")
  */
 final class DcatHarvester implements Harvester
@@ -26,8 +26,8 @@ final class DcatHarvester implements Harvester
     public function harvest(array $source, callable $log): \Generator
     {
         $p = $source['params'] ?? [];
-        $max = max(1, (int) ($p['max_records'] ?? 5000));
-        $maxPages = max(1, (int) ($p['max_pages'] ?? 200));
+        $max = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
+        $maxPages = max(1, (int) ($p['max_pages'] ?? 1000));
         $standard = (string) ($p['standard'] ?? 'DCAT-AP');
 
         $url = $source['url'];

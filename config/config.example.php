@@ -15,6 +15,11 @@ return [
     'download_dir' => __DIR__ . '/../storage/downloads',
     // Fuso orario per date e orari mostrati nell'interfaccia
     'timezone' => 'Europe/Rome',
+    // Numero massimo di record letti da una sorgente in una raccolta, se la sorgente
+    // non indica un proprio "max_records" nei parametri
+    'harvest' => [
+        'max_records' => 25000,
+    ],
     'http' => [
         'timeout'    => 30,
         'user_agent' => 'GeoWebCrawler/0.1 (+https://github.com/)',

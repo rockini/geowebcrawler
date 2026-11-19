@@ -12,7 +12,7 @@ use GeoWebCrawler\Http\HttpClient;
  * i singoli item (scene, tile) non vengono importati, perche' possono essere milioni.
  *
  * Parametri della sorgente (campo params):
- *   max_records  numero massimo di collezioni (default 2000)
+ *   max_records  numero massimo di collezioni (default: harvest.max_records in config.php, 25000)
  *   max_depth    profondita' massima nei cataloghi statici (default 4)
  *   max_requests numero massimo di richieste nei cataloghi statici (default 300)
  */
@@ -28,7 +28,7 @@ final class StacHarvester implements Harvester
     public function harvest(array $source, callable $log): \Generator
     {
         $p = $source['params'] ?? [];
-        $max = max(1, (int) ($p['max_records'] ?? 2000));
+        $max = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
         $maxDepth = max(0, (int) ($p['max_depth'] ?? 4));
         $maxRequests = max(1, (int) ($p['max_requests'] ?? 300));
 

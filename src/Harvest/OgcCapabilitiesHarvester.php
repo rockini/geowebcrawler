@@ -16,7 +16,7 @@ use GeoWebCrawler\Http\HttpClient;
  *   services   elenco dei servizi da interrogare, es. ["WMS","WFS"]. Se assente si usa il
  *              parametro SERVICE dell'URL o, in mancanza, si provano WMS, WFS, WCS e WMTS
  *              (utile con GeoServer, che li espone tutti allo stesso indirizzo /ows).
- *   max_records numero massimo di layer per servizio (default 5000)
+ *   max_records numero massimo di layer per servizio (default: harvest.max_records in config.php, 25000)
  */
 final class OgcCapabilitiesHarvester implements Harvester
 {
@@ -30,7 +30,7 @@ final class OgcCapabilitiesHarvester implements Harvester
         $base = self::baseUrl($source['url']);
         $fromUrl = self::queryParam($source['url'], 'service');
         $services = array_map('strtoupper', (array) ($p['services'] ?? ($fromUrl ? [$fromUrl] : self::ALL)));
-        $max = max(1, (int) ($p['max_records'] ?? 5000));
+        $max = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
         $found = 0;
 
         foreach ($services as $svc) {
