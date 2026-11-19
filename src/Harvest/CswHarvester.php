@@ -30,7 +30,9 @@ final class CswHarvester implements Harvester
     public function harvest(array $source, callable $log): \Generator
     {
         $p        = $source['params'] ?? [];
-        $url      = $source['url'];
+        // l'indirizzo del catalogo senza i parametri OGC (es. ?SERVICE=CSW&REQUEST=GetCapabilities
+        // copiato dal browser): altrimenti il server riceve due richieste diverse insieme
+        $url      = self::endpointUrl($source['url']);
         $max      = max(1, (int) ($p['max_records'] ?? 1000));
         $pageSize = max(1, min(500, (int) ($p['page_size'] ?? 50)));
         $schema   = $p['schema'] ?? 'auto';
@@ -38,27 +40,45 @@ final class CswHarvester implements Harvester
         $cql      = $p['constraint'] ?? null;
 
         $useIso = $schema !== 'dc';
+        $forced = isset($p['method']);
+        // varianti della richiesta da provare in ordine se il catalogo risponde con un errore:
+        // typeNames "csw:Record" e' la forma piu' compatibile (la usano GeoNetwork, OWSLib, QGIS)
+        $attempts = fn(bool $iso) => array_values(array_filter([
+            ['post', 'csw:Record'], ['post', $iso ? 'gmd:MD_Metadata' : null],
+            ['get', 'csw:Record'], ['get', $iso ? 'gmd:MD_Metadata' : null],
+        ], fn($a) => $a[1] !== null && (!$forced || $a[0] === $method)));
+        $variants = $attempts($useIso);
+        [$method, $typeNames] = $variants[0];
         $start = 1;
         $read = 0;
+        $errors = [];
 
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
-            $xml = $this->getRecords($url, $method, $useIso, $start, $n, $cql, $log);
+            $xml = $this->getRecords($url, $method, $useIso, $typeNames, $start, $n, $cql, $log);
             $doc = $xml !== null ? Xml::load($xml) : null;
             $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
 
             if ($error !== null) {
-                if ($start === 1 && $useIso && $schema === 'auto') {
-                    $log("ISO 19139 non disponibile ($error): riprovo con Dublin Core");
+                if ($start > 1) {
+                    throw new \RuntimeException("Errore dal catalogo CSW a partire dal record $start: $error");
+                }
+                $errors[] = sprintf('%s %s %s: %s', $useIso ? 'ISO' : 'DC', strtoupper($method), $typeNames, $error);
+                array_shift($variants);
+                if (!$variants && $useIso && $schema === 'auto') {
+                    $log('ISO 19139 non disponibile, riprovo con Dublin Core. Tentativi: ' . implode(' ; ', $errors));
                     $useIso = false;
-                    continue;
+                    $variants = $attempts(false);
+                    $errors = [];
                 }
-                if ($start === 1 && $method === 'post') {
-                    $log("POST non accettato ($error): riprovo con GET");
-                    $method = 'get';
-                    continue;
+                if (!$variants) {
+                    throw new \RuntimeException('Errore dal catalogo CSW. Tentativi: ' . implode(' ; ', $errors));
                 }
-                throw new \RuntimeException("Errore dal catalogo CSW: $error");
+                [$method, $typeNames] = $variants[0];
+                continue;
+            }
+            if ($start === 1 && $errors) {
+                $log('Richiesta accettata nella forma ' . strtoupper($method) . " typeNames=$typeNames dopo: " . implode(' ; ', $errors));
             }
 
             $xp = Xml::xpath($doc);
@@ -80,6 +100,7 @@ final class CswHarvester implements Harvester
                 if ($start === 1 && $useIso && $schema === 'auto' && $matched > 0) {
                     $log('Nessun record ISO nella risposta: riprovo con Dublin Core');
                     $useIso = false;
+                    [$method, $typeNames] = $attempts(false)[0];
                     continue;
                 }
                 break;
@@ -103,17 +124,16 @@ final class CswHarvester implements Harvester
         }
     }
 
-    private function getRecords(string $url, string $method, bool $iso, int $start, int $n, ?string $cql, callable $log): ?string
+    private function getRecords(string $url, string $method, bool $iso, string $typeNames, int $start, int $n, ?string $cql, callable $log): ?string
     {
         $schema = $iso ? self::SCHEMA_ISO : self::SCHEMA_DC;
-        $typeNames = $iso ? 'gmd:MD_Metadata' : 'csw:Record';
 
         if ($method === 'get') {
             $q = [
                 'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecords',
                 'typeNames' => $typeNames, 'resultType' => 'results', 'elementSetName' => 'full',
                 'outputSchema' => $schema, 'startPosition' => $start, 'maxRecords' => $n,
-                'namespace' => $iso ? 'xmlns(gmd=' . self::SCHEMA_ISO . ')' : 'xmlns(csw=' . self::SCHEMA_DC . ')',
+                'namespace' => str_starts_with($typeNames, 'gmd:') ? 'xmlns(gmd=' . self::SCHEMA_ISO . ')' : 'xmlns(csw=' . self::SCHEMA_DC . ')',
             ];
             if ($cql) {
                 $q += ['constraintLanguage' => 'CQL_TEXT', 'constraint_language_version' => '1.1.0', 'constraint' => $cql];
@@ -126,7 +146,8 @@ final class CswHarvester implements Harvester
             $body = <<<XML
                 <?xml version="1.0" encoding="UTF-8"?>
                 <csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                    service="CSW" version="2.0.2" resultType="results" startPosition="$start" maxRecords="$n" outputSchema="$schema">
+                    service="CSW" version="2.0.2" resultType="results" startPosition="$start" maxRecords="$n"
+                    outputFormat="application/xml" outputSchema="$schema">
                   <csw:Query typeNames="$typeNames">
                     <csw:ElementSetName>full</csw:ElementSetName>$constraint
                   </csw:Query>
@@ -140,6 +161,21 @@ final class CswHarvester implements Harvester
             return null;
         }
         return $res->body;
+    }
+
+    /** URL del catalogo senza i parametri OGC (service, request, version...), ma con quelli propri del server. */
+    public static function endpointUrl(string $url): string
+    {
+        $url = trim(preg_replace('/#.*$/', '', $url));
+        $parts = explode('?', $url, 2);
+        if (count($parts) < 2) {
+            return $url;
+        }
+        $ogc = ['service', 'request', 'version', 'acceptversions', 'outputschema', 'typenames', 'elementsetname',
+                'resulttype', 'startposition', 'maxrecords', 'namespace', 'id', 'outputformat'];
+        $keep = array_filter(explode('&', $parts[1]),
+            fn($kv) => $kv !== '' && !in_array(strtolower(urldecode(explode('=', $kv, 2)[0])), $ogc, true));
+        return $parts[0] . ($keep ? '?' . implode('&', $keep) : '');
     }
 
     /** Testo di un eventuale ows:ExceptionReport, altrimenti null. */

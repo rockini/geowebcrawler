@@ -60,5 +60,8 @@ check('Classifica ArcGIS REST', $c->classify('https://x.it/arcgis/rest/services/
 check('Classifica OGC API', $c->classify('https://x.it/ogc/collections/fiumi/items')?->type, 'ogcapi_features');
 check('Ignora PDF in modalita\' rigorosa', $c->classify('https://x.it/a.pdf', null, null, null, true), null);
 
+check('CSW: URL senza parametri OGC', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://geo.example/geonetwork/srv/eng/csw?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities'), 'https://geo.example/geonetwork/srv/eng/csw');
+check('CSW: parametri del server conservati', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://x/cgi?map=cat.map&request=GetCapabilities'), 'https://x/cgi?map=cat.map');
+
 echo $fail ? "\n$fail verifiche fallite\n" : "\nTutte le verifiche superate\n";
 exit($fail ? 1 : 0);

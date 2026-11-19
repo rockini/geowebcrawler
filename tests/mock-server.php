@@ -13,6 +13,19 @@ if (isset($pages[$path])) {
     return true;
 }
 
+// Simula GeoNetwork che va in errore con typeNames=gmd:MD_Metadata o con parametri KVP nell'URL di un POST
+if ($path === '/csw-strict') {
+    $body = file_get_contents('php://input');
+    $kvp = array_change_key_case($_GET, CASE_LOWER);
+    if (str_contains($body, 'typeNames="gmd:MD_Metadata"') || ($kvp['typenames'] ?? '') === 'gmd:MD_Metadata'
+        || ($body !== '' && isset($kvp['request']))) {
+        header('Content-Type: application/xml');
+        echo '<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows" version="1.2.0"><ows:Exception exceptionCode="NoApplicableCode"><ows:ExceptionText>java.lang.NullPointerException</ows:ExceptionText></ows:Exception></ows:ExceptionReport>';
+        return true;
+    }
+    $path = '/csw';
+}
+
 if ($path === '/csw' || $path === '/csw-dconly') {
     // parametri dalla richiesta POST (XML) o GET (KVP)
     $body = file_get_contents('php://input');
