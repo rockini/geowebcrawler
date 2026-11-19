@@ -112,6 +112,9 @@ check('STAC: asset COG', [$st->endpoints[1]->type, $st->endpoints[1]->format], [
 check('STAC: bbox ed estensione temporale', [$st->bbox, $st->dateCreated], [[6.6, 35.5, 18.5, 47.1], '2020-01-01']);
 check('Geo: bbox STAC 3D', Geo::bboxOfGeoJson(['bbox' => [10, 40, 0, 12, 42, 100]]), [10.0, 40.0, 12.0, 42.0]);
 check('Geo: GML con EPSG:4326 lat/lon', Geo::bboxOfGml('<gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326"><gml:lowerCorner>42 10</gml:lowerCorner><gml:upperCorner>44 12</gml:upperCorner></gml:Envelope>'), [10.0, 42.0, 12.0, 44.0]);
+$nd = Xml::load('<a><c>3003</c><c>2020</c></a>');
+check('Xml::texts restituisce stringhe anche per valori numerici', Xml::texts(Xml::xpath($nd), '//c'), ['3003', '2020']);
+check('EPSG da codice solo numerico', Xml::epsg(Xml::texts(Xml::xpath($nd), '//c')), [3003, 2020]);
 check('CSW: URL senza parametri OGC', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://geo.example/geonetwork/srv/eng/csw?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities'), 'https://geo.example/geonetwork/srv/eng/csw');
 check('CSW: parametri del server conservati', \GeoWebCrawler\Harvest\CswHarvester::endpointUrl('https://x/cgi?map=cat.map&request=GetCapabilities'), 'https://x/cgi?map=cat.map');
 
