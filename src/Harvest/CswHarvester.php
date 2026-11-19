@@ -10,7 +10,7 @@ use GeoWebCrawler\Http\HttpClient;
  * Raccoglie i record da un catalogo CSW 2.0.2 con GetRecords, pagina per pagina.
  *
  * Parametri della sorgente (campo params):
- *   max_records  numero massimo di record da leggere (default 1000)
+ *   max_records  numero massimo di record da leggere (default: harvest.max_records in config.php, 25000)
  *   page_size    record per richiesta (default 50)
  *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso" oppure "dc"
  *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
@@ -33,7 +33,7 @@ final class CswHarvester implements Harvester
         // l'indirizzo del catalogo senza i parametri OGC (es. ?SERVICE=CSW&REQUEST=GetCapabilities
         // copiato dal browser): altrimenti il server riceve due richieste diverse insieme
         $url      = self::endpointUrl($source['url']);
-        $max      = max(1, (int) ($p['max_records'] ?? 1000));
+        $max      = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
         $pageSize = max(1, min(500, (int) ($p['page_size'] ?? 50)));
         $schema   = $p['schema'] ?? 'auto';
         $method   = strtolower($p['method'] ?? 'post');

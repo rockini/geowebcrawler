@@ -53,11 +53,11 @@ php bin\harvest.php --due    tutte le sorgenti attive la cui raccolta e' scaduta
 php bin\harvest.php --all    tutte le sorgenti attive
 ```
 
-Tipi di sorgente supportati:
+Tipi di sorgente supportati. Il limite di record per raccolta è 25000 per tutti i tipi: si cambia in `config.php` (`harvest.max_records`) oppure per la singola sorgente con il parametro `max_records`.
 
 | Tipo | Cosa fa | Parametri (campo JSON) |
 |---|---|---|
-| `csw` | Legge un catalogo CSW 2.0.2 con GetRecords, pagina per pagina. Prova i metadati ISO 19139 e, se il catalogo non li fornisce, Dublin Core. | `max_records` (1000), `page_size` (50), `schema` (`auto`, `iso`, `dc`), `constraint` (filtro CQL, es. `AnyText like '%idrografia%'`), `method` (`post` o `get`) |
+| `csw` | Legge un catalogo CSW 2.0.2 con GetRecords, pagina per pagina. Prova i metadati ISO 19139 e, se il catalogo non li fornisce, Dublin Core. | `max_records` (25000), `page_size` (50), `schema` (`auto`, `iso`, `dc`), `constraint` (filtro CQL, es. `AnyText like '%idrografia%'`), `method` (`post` o `get`) |
 | `webpage` | Analizza una pagina web e trova i link a servizi OGC (WMS, WFS, WCS, WMTS, OGC API, ArcGIS REST) e a file geografici (zip, shp, gpkg, GeoJSON, GeoTIFF, KML…), anche se scritti come testo. | `depth` (0 = solo la pagina), `max_pages` (20), `include` (espressione regolare sugli URL da seguire), `same_host` (true) |
 
 Ogni record trovato viene confrontato con l'archivio: le coppie sospette finiscono nella pagina **Duplicati**, dove scegli quale tenere o le segni come diverse (vedi [docs/database.md](docs/database.md)).
