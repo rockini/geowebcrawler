@@ -10,11 +10,19 @@ final class HttpClient
 {
     private int $timeout;
     private string $userAgent;
+    private ?string $cookieFile = null;
 
     public function __construct(?int $timeout = null, ?string $userAgent = null)
     {
         $this->timeout   = $timeout   ?? (int) Config::get('http.timeout', 30);
-        $this->userAgent = $userAgent ?? (string) Config::get('http.user_agent', 'GeoWebCrawler/0.1');
+        $this->userAgent = $userAgent ?? (string) Config::get('http.user_agent', 'Mozilla/5.0 (compatible; GeoWebCrawler/0.1)');
+    }
+
+    public function __destruct()
+    {
+        if ($this->cookieFile !== null && is_file($this->cookieFile)) {
+            @unlink($this->cookieFile);
+        }
     }
 
     public function get(string $url, array $headers = []): HttpResponse
@@ -29,6 +37,19 @@ final class HttpClient
 
     public function request(string $method, string $url, ?string $body = null, array $headers = []): HttpResponse
     {
+        // Intestazioni come quelle di un browser: alcuni server (es. GeoNetwork) le usano
+        // per scegliere lingua e formato della risposta
+        $names = array_map(fn($h) => strtolower(trim(explode(':', $h, 2)[0])), $headers);
+        if (!in_array('accept', $names, true)) {
+            $headers[] = 'Accept: application/xml, text/xml;q=0.9, application/json;q=0.9, text/html;q=0.8, */*;q=0.7';
+        }
+        if (!in_array('accept-language', $names, true)) {
+            $headers[] = 'Accept-Language: it-IT,it;q=0.9,en;q=0.8';
+        }
+        // i cookie (es. la sessione JSESSIONID) restano validi per tutte le richieste di questo client,
+        // come in un browser
+        $this->cookieFile ??= (tempnam(sys_get_temp_dir(), 'gwc') ?: null);
+
         $ch = curl_init($url);
         $opts = [
             CURLOPT_RETURNTRANSFER => true,
@@ -47,6 +68,10 @@ final class HttpClient
         }
         if ($body !== null) {
             $opts[CURLOPT_POSTFIELDS] = $body;
+        }
+        if ($this->cookieFile !== null) {
+            $opts[CURLOPT_COOKIEFILE] = $this->cookieFile;
+            $opts[CURLOPT_COOKIEJAR] = $this->cookieFile;
         }
         curl_setopt_array($ch, $opts);
 

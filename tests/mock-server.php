@@ -13,6 +13,23 @@ if (isset($pages[$path])) {
     return true;
 }
 
+// Simula un GeoNetwork che richiede la sessione aperta da GetCapabilities e l'intestazione Accept-Language
+if ($path === '/csw-session') {
+    $kvp = array_change_key_case($_GET, CASE_LOWER);
+    if (strcasecmp($kvp['request'] ?? '', 'GetCapabilities') === 0) {
+        setcookie('JSESSIONID', 'abc123');
+        header('Content-Type: application/xml');
+        echo '<csw:Capabilities xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" version="2.0.2"/>';
+        return true;
+    }
+    if (($_COOKIE['JSESSIONID'] ?? '') !== 'abc123' || empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+        header('Content-Type: application/xml');
+        echo '<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows" version="1.2.0"><ows:Exception exceptionCode="NoApplicableCode"><ows:ExceptionText>java.lang.NullPointerException</ows:ExceptionText></ows:Exception></ows:ExceptionReport>';
+        return true;
+    }
+    $path = '/csw';
+}
+
 // Simula GeoNetwork 4 che va in NullPointerException con typeNames=gmd:MD_Metadata, con parametri KVP
 // nell'URL di un POST o quando la richiesta non ha un filtro (Constraint)
 if ($path === '/csw-strict') {

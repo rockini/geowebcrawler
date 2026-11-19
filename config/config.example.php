@@ -22,7 +22,7 @@ return [
     ],
     'http' => [
         'timeout'    => 30,
-        'user_agent' => 'GeoWebCrawler/0.1 (+https://github.com/)',
+        'user_agent' => 'Mozilla/5.0 (compatible; GeoWebCrawler/0.1)',
         // Su Windows, se le richieste HTTPS falliscono con "SSL certificate problem",
         // scarica https://curl.se/ca/cacert.pem e indica qui il percorso del file:
         'ca_bundle'  => null,   // es. 'C:/php/extras/ssl/cacert.pem'
