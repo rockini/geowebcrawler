@@ -21,7 +21,7 @@ sources ──< harvest_runs
 | Tabella | A cosa serve |
 |---|---|
 | `sources` | Le sorgenti da cui si raccolgono i riferimenti: cataloghi CSW, pagine web, portali CKAN e, nella versione estesa, feed, blog e social. Si caricano dal file `config/sources.json` (`origin = 'config'`) o dall'interfaccia (`'ui'`). Il campo `params` (JSON) contiene le opzioni del singolo tipo, per esempio filtri CSW o profondità di navigazione. |
-| `harvest_runs` | Un record per ogni esecuzione della raccolta su una sorgente: esito, quanti record trovati, nuovi e aggiornati. |
+| `harvest_runs` | Un record per ogni esecuzione della raccolta su una sorgente: esito, quanti record trovati, nuovi e aggiornati, e il log completo. |
 | `resources` | I dataset e i servizi trovati, con i metadati standard: titolo, descrizione, parole chiave, date (creazione, pubblicazione, revisione), licenza, vincoli d'accesso, sistemi di riferimento (EPSG), estensione geografica (`bbox` in WGS84), standard dei metadati e metadati originali (`raw_metadata`). |
 | `organizations` / `resource_parties` | Enti e autori, e il loro ruolo rispetto alla risorsa (autore, editore, contatto, distributore…). Lo stesso ente scritto in modi diversi (maiuscole, accenti) viene riconosciuto come uno solo. |
 | `resource_sources` | In quali sorgenti è stata vista ogni risorsa, e quando la prima e l'ultima volta. Una risorsa presente in più cataloghi resta **una sola risorsa** con più provenienze. |
@@ -50,8 +50,10 @@ Per questo la stessa sorgente non può essere inserita due volte, e lo stesso UR
 | Criterio | Punteggio |
 |---|---|
 | `same_external_id`: stesso identificativo di metadato (es. `fileIdentifier` ISO) | 1.0 |
-| `same_url`: condividono un URL di accesso (stesso servizio o file) | 1.0 |
+| `same_url`: condividono un URL di accesso. Vale per i file da scaricare, per i servizi con lo stesso layer, o quando entrambe le risorse sono servizi (molti dataset diversi puntano allo stesso WMS) | 1.0 |
 | `similar_title`: titoli simili (soglia 0.85 regolabile) e aree geografiche compatibili | 0.85–1.0 |
+
+Durante la raccolta il controllo si fa su ogni record appena salvato, usando gli indici, quindi resta veloce anche con archivi grandi. Un record già visto nella stessa sorgente aggiorna la risorsa esistente invece di crearne una nuova; se quella risorsa era stata unita a un'altra, i nuovi link vanno alla risorsa tenuta.
 
 Le coppie trovate finiscono in `duplicate_candidates` con stato `pending`. Dall'interfaccia (vista `v_duplicates_pending`) puoi:
 

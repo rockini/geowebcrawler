@@ -20,6 +20,7 @@ final class Database
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
             self::$pdo->exec("SET search_path = gwc, public");
+            self::$pdo->prepare("SELECT set_config('TimeZone', ?, false)")->execute([date_default_timezone_get()]);
         }
         return self::$pdo;
     }

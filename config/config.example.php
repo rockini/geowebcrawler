@@ -13,8 +13,13 @@ return [
     'sources_file' => __DIR__ . '/sources.json',
     // Cartella dove salvare i dati scaricati (fase 3)
     'download_dir' => __DIR__ . '/../storage/downloads',
+    // Fuso orario per date e orari mostrati nell'interfaccia
+    'timezone' => 'Europe/Rome',
     'http' => [
         'timeout'    => 30,
         'user_agent' => 'GeoWebCrawler/0.1 (+https://github.com/)',
+        // Su Windows, se le richieste HTTPS falliscono con "SSL certificate problem",
+        // scarica https://curl.se/ca/cacert.pem e indica qui il percorso del file:
+        'ca_bundle'  => null,   // es. 'C:/php/extras/ssl/cacert.pem'
     ],
 ];

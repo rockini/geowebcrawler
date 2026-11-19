@@ -18,4 +18,6 @@ if (is_file($composer)) {
     });
 }
 
-return GeoWebCrawler\Config::load(__DIR__ . '/../config/config.php');
+$config = GeoWebCrawler\Config::load(__DIR__ . '/../config/config.php');
+date_default_timezone_set($config['timezone'] ?? 'Europe/Rome');
+return $config;

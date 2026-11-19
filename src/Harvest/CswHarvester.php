@@ -1,0 +1,166 @@
+<?php
+declare(strict_types=1);
+
+namespace GeoWebCrawler\Harvest;
+
+use DOMElement;
+use GeoWebCrawler\Http\HttpClient;
+
+/**
+ * Raccoglie i record da un catalogo CSW 2.0.2 con GetRecords, pagina per pagina.
+ *
+ * Parametri della sorgente (campo params):
+ *   max_records  numero massimo di record da leggere (default 1000)
+ *   page_size    record per richiesta (default 50)
+ *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso" oppure "dc"
+ *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
+ *   method       "post" (default) o "get"
+ */
+final class CswHarvester implements Harvester
+{
+    private const SCHEMA_ISO = 'http://www.isotc211.org/2005/gmd';
+    private const SCHEMA_DC  = 'http://www.opengis.net/cat/csw/2.0.2';
+
+    public function __construct(
+        private HttpClient $http = new HttpClient(),
+        private Iso19139Parser $iso = new Iso19139Parser(),
+        private DublinCoreParser $dc = new DublinCoreParser(),
+    ) {}
+
+    public function harvest(array $source, callable $log): \Generator
+    {
+        $p        = $source['params'] ?? [];
+        $url      = $source['url'];
+        $max      = max(1, (int) ($p['max_records'] ?? 1000));
+        $pageSize = max(1, min(500, (int) ($p['page_size'] ?? 50)));
+        $schema   = $p['schema'] ?? 'auto';
+        $method   = strtolower($p['method'] ?? 'post');
+        $cql      = $p['constraint'] ?? null;
+
+        $useIso = $schema !== 'dc';
+        $start = 1;
+        $read = 0;
+
+        while ($read < $max) {
+            $n = min($pageSize, $max - $read);
+            $xml = $this->getRecords($url, $method, $useIso, $start, $n, $cql, $log);
+            $doc = $xml !== null ? Xml::load($xml) : null;
+            $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
+
+            if ($error !== null) {
+                if ($start === 1 && $useIso && $schema === 'auto') {
+                    $log("ISO 19139 non disponibile ($error): riprovo con Dublin Core");
+                    $useIso = false;
+                    continue;
+                }
+                if ($start === 1 && $method === 'post') {
+                    $log("POST non accettato ($error): riprovo con GET");
+                    $method = 'get';
+                    continue;
+                }
+                throw new \RuntimeException("Errore dal catalogo CSW: $error");
+            }
+
+            $xp = Xml::xpath($doc);
+            $results = $xp->query('//csw:SearchResults')->item(0);
+            if (!$results instanceof DOMElement) {
+                throw new \RuntimeException('Risposta CSW senza SearchResults');
+            }
+            $matched = (int) $results->getAttribute('numberOfRecordsMatched');
+            $next    = (int) $results->getAttribute('nextRecord');
+            if ($start === 1) {
+                $log(sprintf('Record disponibili nel catalogo: %d (ne leggo al massimo %d, formato %s)',
+                    $matched, $max, $useIso ? 'ISO 19139' : 'Dublin Core'));
+            }
+
+            $nodes = $useIso
+                ? $xp->query('gmd:MD_Metadata', $results)
+                : $xp->query('csw:Record | csw:SummaryRecord | csw:BriefRecord', $results);
+            if ($nodes->length === 0) {
+                if ($start === 1 && $useIso && $schema === 'auto' && $matched > 0) {
+                    $log('Nessun record ISO nella risposta: riprovo con Dublin Core');
+                    $useIso = false;
+                    continue;
+                }
+                break;
+            }
+
+            foreach ($nodes as $node) {
+                $read++;
+                $record = $useIso ? $this->iso->parse($xp, $node) : $this->dc->parse($xp, $node);
+                if ($record === null) {
+                    $log("Record #$read ignorato: titolo mancante");
+                    continue;
+                }
+                $record->metadataUrl = $this->recordByIdUrl($url, $record->externalId, $useIso);
+                yield $record;
+            }
+
+            if ($next <= 0 || ($matched > 0 && $next > $matched) || $next <= $start) {
+                break;
+            }
+            $start = $next;
+        }
+    }
+
+    private function getRecords(string $url, string $method, bool $iso, int $start, int $n, ?string $cql, callable $log): ?string
+    {
+        $schema = $iso ? self::SCHEMA_ISO : self::SCHEMA_DC;
+        $typeNames = $iso ? 'gmd:MD_Metadata' : 'csw:Record';
+
+        if ($method === 'get') {
+            $q = [
+                'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecords',
+                'typeNames' => $typeNames, 'resultType' => 'results', 'elementSetName' => 'full',
+                'outputSchema' => $schema, 'startPosition' => $start, 'maxRecords' => $n,
+                'namespace' => $iso ? 'xmlns(gmd=' . self::SCHEMA_ISO . ')' : 'xmlns(csw=' . self::SCHEMA_DC . ')',
+            ];
+            if ($cql) {
+                $q += ['constraintLanguage' => 'CQL_TEXT', 'constraint_language_version' => '1.1.0', 'constraint' => $cql];
+            }
+            $res = $this->http->get($url . (str_contains($url, '?') ? '&' : '?') . http_build_query($q));
+        } else {
+            $constraint = $cql
+                ? '<csw:Constraint version="1.1.0"><csw:CqlText>' . htmlspecialchars($cql, ENT_XML1) . '</csw:CqlText></csw:Constraint>'
+                : '';
+            $body = <<<XML
+                <?xml version="1.0" encoding="UTF-8"?>
+                <csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                    service="CSW" version="2.0.2" resultType="results" startPosition="$start" maxRecords="$n" outputSchema="$schema">
+                  <csw:Query typeNames="$typeNames">
+                    <csw:ElementSetName>full</csw:ElementSetName>$constraint
+                  </csw:Query>
+                </csw:GetRecords>
+                XML;
+            $res = $this->http->post($url, $body);
+        }
+
+        if (!$res->ok() && $res->body === '') {
+            $log('Richiesta fallita: ' . $res->problem());
+            return null;
+        }
+        return $res->body;
+    }
+
+    /** Testo di un eventuale ows:ExceptionReport, altrimenti null. */
+    private function exception(\DOMDocument $doc): ?string
+    {
+        $root = $doc->documentElement;
+        if ($root && $root->localName === 'ExceptionReport') {
+            return trim(preg_replace('/\s+/', ' ', $root->textContent)) ?: 'ExceptionReport';
+        }
+        return null;
+    }
+
+    private function recordByIdUrl(string $url, ?string $id, bool $iso): ?string
+    {
+        if ($id === null) {
+            return null;
+        }
+        $base = preg_replace('/\?.*$/', '', $url);
+        return $base . '?' . http_build_query([
+            'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecordById',
+            'id' => $id, 'elementSetName' => 'full', 'outputSchema' => $iso ? self::SCHEMA_ISO : self::SCHEMA_DC,
+        ]);
+    }
+}
