@@ -88,6 +88,12 @@ final class EndpointClassifier
                 $type = 'wmts';
             } elseif (preg_match('~/(wms|wfs|wcs)(/|$|\?)~', $path, $m)) {
                 $type = $m[1];
+            } elseif (($map = isset($query['map']) && is_string($query['map']) ? strtolower($query['map']) : '') !== ''
+                      || preg_match('~/(ows|ogc|mapserv(\.exe|\.cgi|\.fcgi)?|qgis_mapserv\.fcgi(\.exe)?)/?$~', $path)) {
+                // MapServer/QGIS Server: es. .../ogc?map=/ms_ogc/wfs/Rete_ferroviaria.map
+                // il tipo si ricava dal percorso del file .map o dal testo del link; altrimenti WMS
+                $hay = $map . ' ' . $path . ' ' . strtolower((string) $label);
+                $type = preg_match('~(?<![a-z])(wmts|wms|wfs|wcs)(?![a-z])~', $hay, $m) ? $m[1] : 'wms';
             }
         }
 

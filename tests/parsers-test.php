@@ -59,6 +59,8 @@ check('Risoluzione ../', WebPageHarvester::resolve('http://a.it/x/y/z.html', '..
 check('Classifica ArcGIS REST', $c->classify('https://x.it/arcgis/rest/services/A/MapServer')?->type, 'arcgis_rest');
 check('Classifica OGC API', $c->classify('https://x.it/ogc/collections/fiumi/items')?->type, 'ogcapi_features');
 check('Ignora PDF in modalita\' rigorosa', $c->classify('https://x.it/a.pdf', null, null, null, true), null);
+check('Classifica MapServer WFS (map=)', $c->classify('http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/wfs/Rete_ferroviaria.map', null, null, null, true)?->type, 'wfs');
+check('Classifica MapServer WMS (map=)', $c->classify('http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/Vettoriali/Rete_ferroviaria.map', null, null, null, true)?->type, 'wms');
 
 $nd = Xml::load('<a><c>3003</c><c>2020</c></a>');
 check('Xml::texts restituisce stringhe anche per valori numerici', Xml::texts(Xml::xpath($nd), '//c'), ['3003', '2020']);
