@@ -46,7 +46,7 @@ final class Iso19139Parser
 
         $r->abstract = Xml::text($xp, $cs('gmd:abstract'), $ident);
         $r->language = Xml::text($xp, 'gmd:language/gmd:LanguageCode/@codeListValue | ' . $cs('gmd:language'), $md);
-        $r->metadataDate = Xml::text($xp, 'gmd:dateStamp/gco:DateTime | gmd:dateStamp/gco:Date', $md);
+        $r->metadataDate = Xml::dateTime(Xml::text($xp, 'gmd:dateStamp/gco:DateTime | gmd:dateStamp/gco:Date', $md));
 
         foreach ($xp->query('gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date', $ident) as $d) {
             $value = Xml::date(Xml::text($xp, 'gmd:date/gco:Date | gmd:date/gco:DateTime', $d));

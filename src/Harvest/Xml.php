@@ -94,6 +94,17 @@ final class Xml
         return null;
     }
 
+    /** Data e ora ISO 8601 (es. 2015-08-03T10:20:00); se incompleta ("2015-08", "2015") come date(). */
+    public static function dateTime(?string $v): ?string
+    {
+        $v = $v === null ? null : trim($v);
+        if ($v !== null && preg_match('/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(:\d{2}(\.\d+)?)?)(Z|[+-]\d{2}(:?\d{2})?)?$/', $v, $m)
+            && self::date($m[1]) !== null) {
+            return $m[1] . 'T' . $m[2] . ($m[5] ?? '');
+        }
+        return self::date($v);
+    }
+
     /** Estrae i codici EPSG da stringhe come "EPSG:3003", "urn:ogc:def:crs:EPSG::4326", ".../EPSG/0/32632". */
     public static function epsg(array $values): array
     {
