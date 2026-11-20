@@ -22,7 +22,9 @@ return [
     ],
     'http' => [
         'timeout'    => 30,
-        'user_agent' => 'Mozilla/5.0 (compatible; GeoWebCrawler/0.1)',
+        // Non usare parole come "crawler", "bot" o "spider": GeoNetwork tratta questi client
+        // come motori di ricerca e risponde alle richieste CSW con NullPointerException.
+        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GWC/0.1',
         // Su Windows, se le richieste HTTPS falliscono con "SSL certificate problem",
         // scarica https://curl.se/ca/cacert.pem e indica qui il percorso del file:
         'ca_bundle'  => null,   // es. 'C:/php/extras/ssl/cacert.pem'
