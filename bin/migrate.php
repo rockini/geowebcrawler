@@ -23,6 +23,8 @@ $markers = [
     '005_indici.sql'               => "SELECT to_regclass('gwc.source_types') IS NOT NULL
                                         AND EXISTS (SELECT 1 FROM gwc.source_types WHERE code = 'stac')",
     '006_duplicati_meno_falsi.sql' => "SELECT to_regprocedure('gwc.title_numbers(text)') IS NOT NULL",
+    '006_duplicati_veloce.sql'     => "SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                                        WHERE table_schema = 'gwc' AND table_name = 'resources' AND column_name = 'title_nums')",
     '007_indicizzazione.sql'       => "SELECT to_regclass('gwc.themes') IS NOT NULL",
 ];
 foreach ($markers as $name => $check) {
