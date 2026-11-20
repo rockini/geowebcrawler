@@ -370,36 +370,78 @@ ALTER TABLE gwc.resources ADD COLUMN IF NOT EXISTS themes text[] NOT NULL DEFAUL
 CREATE INDEX IF NOT EXISTS resources_themes_idx ON gwc.resources USING gin (themes);
 
 -- Assegna i temi INSPIRE a una risorsa (o a tutte). Restituisce le risorse modificate.
+-- Per tutto l'archivio si procede tema per tema con un'unica espressione regolare per tema
+-- (PostgreSQL tiene in memoria solo poche espressioni compilate: centinaia di regole alternate
+-- verrebbero ricompilate di continuo) e le parole chiave normalizzate si calcolano una volta sola.
 CREATE OR REPLACE FUNCTION gwc.assign_themes(p_resource_id bigint DEFAULT NULL)
 RETURNS integer LANGUAGE plpgsql AS
 $$
 DECLARE
-    n integer;
+    n  integer;
+    th record;
 BEGIN
-    WITH kw AS (
-        -- dalle parole chiave e dalle categorie ISO
-        SELECT r.id, r.title_key,
-               ARRAY(SELECT DISTINCT tr.theme FROM gwc.theme_rules tr
-                      WHERE (tr.field = 'keyword' AND EXISTS (
-                                 SELECT 1 FROM unnest(r.keywords) k WHERE gwc.normalize_text(k) ~ tr.pattern))
-                         OR (tr.field = 'topic' AND EXISTS (
-                                 SELECT 1 FROM unnest(r.topic_categories) t WHERE lower(t) ~ tr.pattern))
-                      ORDER BY 1) AS themes
+    IF p_resource_id IS NOT NULL THEN
+        -- una sola risorsa (durante la raccolta): poche parole chiave, si provano le regole una per una
+        WITH kw AS (
+            SELECT r.id, r.title_key,
+                   ARRAY(SELECT DISTINCT tr.theme FROM gwc.theme_rules tr
+                          WHERE (tr.field = 'keyword' AND EXISTS (
+                                     SELECT 1 FROM unnest(r.keywords) k WHERE gwc.normalize_text(k) ~ tr.pattern))
+                             OR (tr.field = 'topic' AND EXISTS (
+                                     SELECT 1 FROM unnest(r.topic_categories) t WHERE lower(t) ~ tr.pattern))
+                          ORDER BY 1) AS themes
+              FROM gwc.resources r WHERE r.id = p_resource_id
+        ), calc AS (
+            SELECT kw.id,
+                   CASE WHEN kw.themes <> '{}' THEN kw.themes
+                        ELSE ARRAY(SELECT DISTINCT tr.theme FROM gwc.theme_rules tr
+                                    WHERE tr.field = 'keyword' AND kw.title_key ~ tr.pattern ORDER BY 1) END AS themes
+              FROM kw
+        )
+        UPDATE gwc.resources r SET themes = c.themes FROM calc c
+         WHERE r.id = c.id AND r.themes IS DISTINCT FROM c.themes;
+        GET DIAGNOSTICS n = ROW_COUNT;
+        RETURN n;
+    END IF;
+
+    -- tutto l'archivio
+    CREATE TEMP TABLE IF NOT EXISTS gwc_kw (id bigint, k text) ON COMMIT DROP;
+    CREATE TEMP TABLE IF NOT EXISTS gwc_found (id bigint, theme text, src smallint) ON COMMIT DROP;
+    TRUNCATE gwc_kw, gwc_found;
+    INSERT INTO gwc_kw SELECT DISTINCT r.id, gwc.normalize_text(k)
+      FROM gwc.resources r, unnest(r.keywords) k WHERE k <> '';
+    INSERT INTO gwc_kw SELECT DISTINCT r.id, 'topic:' || lower(t)
+      FROM gwc.resources r, unnest(r.topic_categories) t WHERE t <> '';
+
+    FOR th IN SELECT theme,
+                     string_agg('(?:' || pattern || ')', '|') FILTER (WHERE field = 'keyword') AS kw,
+                     string_agg('(?:' || pattern || ')', '|') FILTER (WHERE field = 'topic') AS tp
+                FROM gwc.theme_rules GROUP BY theme
+    LOOP
+        IF th.kw IS NOT NULL THEN
+            INSERT INTO gwc_found SELECT DISTINCT id, th.theme, 1 FROM gwc_kw
+             WHERE k NOT LIKE 'topic:%' AND k ~ th.kw;
+            INSERT INTO gwc_found SELECT id, th.theme, 2 FROM gwc.resources WHERE title_key ~ th.kw;
+        END IF;
+        IF th.tp IS NOT NULL THEN
+            INSERT INTO gwc_found SELECT DISTINCT id, th.theme, 1 FROM gwc_kw
+             WHERE k LIKE 'topic:%' AND substr(k, 7) ~ th.tp;
+        END IF;
+    END LOOP;
+
+    -- i temi dalle parole chiave e dalle categorie; se non ce ne sono, quelli dal titolo
+    WITH calc AS (
+        SELECT r.id, COALESCE(k.themes, t.themes, '{}') AS themes
           FROM gwc.resources r
-         WHERE p_resource_id IS NULL OR r.id = p_resource_id
-    ),
-    calc AS (
-        -- se non bastano, dal titolo (con le stesse regole delle parole chiave)
-        SELECT kw.id,
-               CASE WHEN kw.themes <> '{}' THEN kw.themes
-                    ELSE ARRAY(SELECT DISTINCT tr.theme FROM gwc.theme_rules tr
-                                WHERE tr.field = 'keyword' AND kw.title_key ~ tr.pattern ORDER BY 1) END AS themes
-          FROM kw
+          LEFT JOIN (SELECT id, array_agg(DISTINCT theme ORDER BY theme) AS themes FROM gwc_found WHERE src = 1 GROUP BY id) k
+                 ON k.id = r.id
+          LEFT JOIN (SELECT id, array_agg(DISTINCT theme ORDER BY theme) AS themes FROM gwc_found WHERE src = 2 GROUP BY id) t
+                 ON t.id = r.id
     )
-    UPDATE gwc.resources r SET themes = c.themes
-      FROM calc c
+    UPDATE gwc.resources r SET themes = c.themes FROM calc c
      WHERE r.id = c.id AND r.themes IS DISTINCT FROM c.themes;
     GET DIAGNOSTICS n = ROW_COUNT;
+    TRUNCATE gwc_kw, gwc_found;
     RETURN n;
 END
 $$;
@@ -421,12 +463,6 @@ ALTER TABLE gwc.sources
 -- Duplicati: niente coppie tra un servizio e un dataset, ne' tra risorse collegate
 -- =====================================================================
 
--- numeri del titolo senza separatori delle migliaia: "1:10.000" e "1:10000" danno gli stessi numeri
-CREATE OR REPLACE FUNCTION gwc.title_numbers(t text) RETURNS text
-LANGUAGE sql IMMUTABLE PARALLEL SAFE AS
-$$ SELECT coalesce(string_agg(m[1], ' '), '')
-     FROM regexp_matches(regexp_replace(regexp_replace(coalesce(t, ''), '(\d)[.'' ](\d{3})(?!\d)', '\1\2', 'g'),
-                                        '(\d)[.'' ](\d{3})(?!\d)', '\1\2', 'g'), '(\d+)', 'g') AS m $$;
 
 CREATE OR REPLACE FUNCTION gwc.detect_duplicates(
     p_resource_id    bigint DEFAULT NULL,
@@ -450,32 +486,30 @@ BEGIN
         SELECT LEAST(t.id, o.id) AS x, GREATEST(t.id, o.id) AS y, 'same_external_id'::text AS reason, 1.0::real AS score
           FROM gwc.resources t
           JOIN gwc.resources o ON o.external_id = t.external_id AND o.id <> t.id
-         WHERE (p_resource_id IS NULL OR t.id = p_resource_id)
+         WHERE (t.id = p_resource_id OR (p_resource_id IS NULL AND o.id > t.id))
            AND t.status IN ('active','pending') AND o.status IN ('active','pending')
         UNION ALL
         SELECT LEAST(ea.resource_id, eb.resource_id), GREATEST(ea.resource_id, eb.resource_id), 'same_url', 1.0
           FROM gwc.endpoints ea
           JOIN shared sh ON sh.url_key = ea.url_key AND sh.layer_name IS NOT DISTINCT FROM ea.layer_name
-                        AND sh.n <= p_max_url_shared
+                        AND sh.n BETWEEN 2 AND p_max_url_shared
           JOIN gwc.endpoints eb
             ON eb.url_key = ea.url_key
            AND eb.resource_id <> ea.resource_id
            AND eb.layer_name IS NOT DISTINCT FROM ea.layer_name
           JOIN gwc.resources ra ON ra.id = ea.resource_id AND ra.status IN ('active','pending')
           JOIN gwc.resources rb ON rb.id = eb.resource_id AND rb.status IN ('active','pending')
-         WHERE (p_resource_id IS NULL OR ea.resource_id = p_resource_id)
+         WHERE (ea.resource_id = p_resource_id OR (p_resource_id IS NULL AND eb.resource_id > ea.resource_id))
            AND (ra.resource_type = 'service') = (rb.resource_type = 'service')
            AND (ea.endpoint_type = 'download' OR ea.layer_name IS NOT NULL
                 OR (ra.resource_type = 'service' AND rb.resource_type = 'service'))
         UNION ALL
         SELECT LEAST(t.id, o.id), GREATEST(t.id, o.id), 'similar_title', similarity(t.title_key, o.title_key)
           FROM gwc.resources t
-          JOIN gwc.resources o ON o.title_key % t.title_key AND o.id <> t.id
-         WHERE (p_resource_id IS NULL OR t.id = p_resource_id)
+          JOIN gwc.resources o ON o.title_key % t.title_key AND o.title_nums = t.title_nums AND o.id <> t.id
+         WHERE (t.id = p_resource_id OR (p_resource_id IS NULL AND o.id > t.id))
            AND t.status IN ('active','pending') AND o.status IN ('active','pending')
            AND (t.resource_type = 'service') = (o.resource_type = 'service')
-           AND similarity(t.title_key, o.title_key) >= p_min_similarity
-           AND gwc.title_numbers(t.title) = gwc.title_numbers(o.title)
            AND (t.bbox IS NULL OR o.bbox IS NULL
                 OR (ST_Intersects(t.bbox, o.bbox) AND NOT ST_Touches(t.bbox, o.bbox)))
     ),
