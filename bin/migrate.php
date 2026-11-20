@@ -25,7 +25,15 @@ $markers = [
     '006_duplicati_meno_falsi.sql' => "SELECT to_regprocedure('gwc.title_numbers(text)') IS NOT NULL",
 ];
 foreach ($markers as $name => $check) {
-    if (!in_array($name, $done, true) && is_file(__DIR__ . "/../sql/$name") && $db->query($check)->fetchColumn()) {
+    if (in_array($name, $done, true) || !is_file(__DIR__ . "/../sql/$name")) {
+        continue;
+    }
+    try {
+        $present = (bool) $db->query($check)->fetchColumn();
+    } catch (PDOException) {
+        $present = false;    // database nuovo: le tabelle controllate non esistono ancora
+    }
+    if ($present) {
         $db->prepare("INSERT INTO public.gwc_migrations (name) VALUES (?)")->execute([$name]);
         $done[] = $name;
         echo "Gia' presente nel database: $name\n";
