@@ -183,6 +183,8 @@ final class App
     {
         $pairs = $this->db->query("SELECT * FROM gwc.v_duplicates_pending LIMIT 100")->fetchAll();
         $total = (int) $this->db->query("SELECT count(*) FROM gwc.v_duplicates_pending")->fetchColumn();
+        $byReason = $this->db->query("SELECT reason, count(*) FROM gwc.v_duplicates_pending GROUP BY reason ORDER BY 2 DESC")
+                             ->fetchAll(\PDO::FETCH_KEY_PAIR);
         // dettagli delle risorse coinvolte, per il confronto affiancato
         $ids = [];
         foreach ($pairs as $p) {
@@ -202,7 +204,7 @@ final class App
                 $details[$d['id']] = $d;
             }
         }
-        View::render('duplicates', compact('pairs', 'total', 'details'), 'Duplicati');
+        View::render('duplicates', compact('pairs', 'total', 'byReason', 'details'), 'Duplicati');
     }
 
     // ------------------------------------------------------------------ azioni

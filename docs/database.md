@@ -50,8 +50,8 @@ Per questo la stessa sorgente non può essere inserita due volte, e lo stesso UR
 | Criterio | Punteggio |
 |---|---|
 | `same_external_id`: stesso identificativo di metadato (es. `fileIdentifier` ISO) | 1.0 |
-| `same_url`: condividono un URL di accesso. Vale per i file da scaricare, per i servizi con lo stesso layer, o quando entrambe le risorse sono servizi (molti dataset diversi puntano allo stesso WMS) | 1.0 |
-| `similar_title`: titoli simili (soglia 0.85 regolabile) e aree geografiche compatibili | 0.85–1.0 |
+| `same_url`: condividono un URL di accesso. Vale per i file da scaricare, per i servizi con lo stesso layer, o quando entrambe le risorse sono servizi (molti dataset diversi puntano allo stesso WMS). Un URL usato da più di 5 risorse è considerato generico e non conta | 1.0 |
+| `similar_title`: titoli simili (soglia 0.85 regolabile), con gli stessi numeri (anni, fogli, sezioni) e aree che si sovrappongono (non basta che si tocchino) | 0.85–1.0 |
 
 Durante la raccolta il controllo si fa su ogni record appena salvato, usando gli indici, quindi resta veloce anche con archivi grandi. Un record già visto nella stessa sorgente aggiorna la risorsa esistente invece di crearne una nuova; se quella risorsa era stata unita a un'altra, i nuovi link vanno alla risorsa tenuta.
 

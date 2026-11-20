@@ -4,6 +4,7 @@ $fields = ['title' => 'Titolo', 'resource_type' => 'Tipo', 'external_id' => 'Ide
            'date_published' => 'Pubblicazione', 'date_revised' => 'Revisione', 'license' => 'Licenza', 'formats' => 'Formati',
            'endpoint_types' => 'Accesso', 'n_endpoints' => 'N. link', 'bbox_txt' => 'Estensione', 'source_names' => 'Sorgenti']; ?>
 <h1>Duplicati da verificare <span class="muted">(<?= $total ?>)</span></h1>
+<?php if ($byReason): ?><p class="muted">Coppie per motivo: <?= V::e(implode(' · ', array_map(fn($r, $n) => ($reasons[$r] ?? $r) . " $n", array_keys($byReason), $byReason))) ?></p><?php endif; ?>
 <form method="post" class="inline"><?= V::csrfField() ?><input type="hidden" name="action" value="detect_all">
   <button class="secondary">Ricontrolla tutto l'archivio</button></form>
 <p class="muted">Per ogni coppia scegli quale risorsa tenere: l'altra viene unita (link, provenienze ed enti passano a quella tenuta, nulla viene cancellato). Se non sono la stessa cosa, premi "Sono diverse".</p>
