@@ -130,7 +130,7 @@ if ($path === '/csw' || $path === '/csw-dconly') {
     if ($next > count($all)) {
         $next = 0;
     }
-    printf('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:ows="http://www.opengis.net/ows" version="2.0.2">'
+    printf('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:ows="http://www.opengis.net/ows" version="2.0.2">'
         . '<csw:SearchStatus timestamp="2026-01-01T00:00:00"/>'
         . '<csw:SearchResults numberOfRecordsMatched="%d" numberOfRecordsReturned="%d" nextRecord="%d" elementSet="full">%s</csw:SearchResults></csw:GetRecordsResponse>',
         count($all), count($slice), $next, implode('', $slice));

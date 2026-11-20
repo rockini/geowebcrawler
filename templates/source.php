@@ -25,6 +25,12 @@
     <input type="hidden" name="action" value="harvest"><input type="hidden" name="id" value="<?= (int) $source['id'] ?>">
     <button>Raccogli ora</button>
   </form>
+  <?php if (in_array($source['source_type'], \GeoWebCrawler\Harvest\HarvestRunner::INCREMENTAL, true)): ?>
+  <form method="post" class="inline" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Raccolta in corso...'"><?= V::csrfField() ?>
+    <input type="hidden" name="action" value="harvest"><input type="hidden" name="full" value="1"><input type="hidden" name="id" value="<?= (int) $source['id'] ?>">
+    <button class="secondary" title="Rilegge tutto il catalogo e segna come rimossi i record che non ci sono piu'">Raccolta completa</button>
+  </form>
+  <?php endif; ?>
   <a class="button secondary" href="<?= V::url('resources', ['source' => $source['id']]) ?>">Vedi le risorse</a>
   <form method="post" class="inline" onsubmit="return confirm('Eliminare la sorgente? Le risorse raccolte restano in archivio.')"><?= V::csrfField() ?>
     <input type="hidden" name="action" value="source_delete"><input type="hidden" name="id" value="<?= (int) $source['id'] ?>">
@@ -32,9 +38,15 @@
   </form>
 </div>
 
+<?php if (in_array($source['source_type'], \GeoWebCrawler\Harvest\HarvestRunner::INCREMENTAL, true)): ?>
+<p class="muted">"Raccogli ora" legge solo i record modificati dall'ultima raccolta, se possibile. Ogni 30 giorni (parametro
+  <code>full_every_days</code>) la raccolta e' completa: solo allora i record spariti dal catalogo vengono segnati come rimossi.
+  Con <code>{"incremental": false}</code> nei parametri la raccolta e' sempre completa.</p>
+<?php endif; ?>
+
 <h2>Raccolte</h2>
 <table>
-  <tr><th>Inizio</th><th>Esito</th><th class="num">Trovati</th><th class="num">Nuovi</th><th class="num">Aggiornati</th><th>Messaggio</th><th></th></tr>
+  <tr><th>Inizio</th><th>Esito</th><th class="num">Trovati</th><th class="num">Nuovi</th><th class="num">Aggiornati</th><th class="num">Rimossi</th><th>Tipo</th><th>Messaggio</th><th></th></tr>
   <?php foreach ($runs as $r): ?>
   <tr>
     <td><?= V::date($r['started_at'], true) ?></td>
@@ -42,6 +54,8 @@
     <td class="num"><?= (int) $r['records_found'] ?></td>
     <td class="num"><?= (int) $r['records_new'] ?></td>
     <td class="num"><?= (int) $r['records_updated'] ?></td>
+    <td class="num"><?= (int) ($r['records_removed'] ?? 0) ?></td>
+    <td><?= ($r['mode'] ?? 'full') === 'incremental' ? 'incrementale' : 'completa' ?><?= !empty($r['complete']) ? ' ✔' : '' ?></td>
     <td><?= V::e($r['message']) ?></td>
     <td><a href="<?= V::url('run', ['id' => $r['id']]) ?>">log</a></td>
   </tr>

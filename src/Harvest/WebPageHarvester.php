@@ -41,6 +41,7 @@ final class WebPageHarvester implements Harvester
         $visited = [];
         $found   = [];
         $pages   = 0;
+        $complete = true;
 
         while ($queue && $pages < $maxPages) {
             [$pageUrl, $level] = array_shift($queue);
@@ -54,6 +55,7 @@ final class WebPageHarvester implements Harvester
             $pages++;
             if (!$res->ok()) {
                 $log("Pagina non raggiungibile ($pageUrl): " . $res->problem());
+                $complete = false;
                 if ($pages === 1) {
                     throw new \RuntimeException('Pagina iniziale non raggiungibile: ' . $res->problem());
                 }
@@ -84,6 +86,8 @@ final class WebPageHarvester implements Harvester
             }
             $log("Pagina analizzata: $pageUrl ($n riferimenti a dati)");
         }
+        // false: non tutte le pagine sono state lette (errori o limite max_pages)
+        return $complete && !$queue;
     }
 
     /** @return array{0: array<int, array{0:string,1:?string}>, 1: ?string} link (url, testo) e titolo della pagina */

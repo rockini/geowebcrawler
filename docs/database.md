@@ -29,6 +29,8 @@ sources ──< harvest_runs
 | `endpoint_checks` | *(fase 2)* Storico dei test di disponibilità: codice HTTP, tempo di risposta, tipo di contenuto, validità del GetCapabilities. L'ultimo esito è copiato anche in `endpoints.last_check_ok`. |
 | `downloads` | *(fase 3)* Scaricamenti eseguiti: file locale, dimensione, impronta SHA-256, eventuale tabella PostGIS in cui il dato è stato importato. |
 | `duplicate_candidates` | Coppie di risorse che sembrano duplicate, in attesa che tu le confermi o le scarti dall'interfaccia. |
+| `resource_links` | Collegamenti servizio → dataset pubblicato: dichiarati nei metadati (`origin = 'metadata'`, da `srv:operatesOn` o `dcat:servesDataset`, i cui riferimenti grezzi stanno in `resource_link_refs`) o ricavati dai link (`'endpoint'`: il dataset ha un link a un layer dello stesso servizio, confrontato con `endpoints.service_key`). Si ricalcolano con `gwc.resolve_links()`. |
+| `themes` / `theme_rules` | I 34 temi INSPIRE e le regole (espressioni regolari su parole chiave, categorie ISO e, in mancanza, titolo) che li assegnano a `resources.themes`. Dopo aver cambiato le regole: `SELECT gwc.assign_themes();`. |
 
 Tabelle di vocabolario, ampliabili dall'interfaccia: `source_types`, `endpoint_types`, `formats` (con le estensioni dei file riconosciute) e `licenses` (codici SPDX dove esistono, più le varianti testuali usate per riconoscerle, per esempio "IODL 2.0").
 
@@ -68,6 +70,19 @@ Le coppie trovate finiscono in `duplicate_candidates` con stato `pending`. Dall'
 | `pending` | Da revisionare (per esempio metadati incompleti) |
 | `duplicate` | Unita a un'altra risorsa (`canonical_id`) |
 | `rejected` | Scartata manualmente (non pertinente, spam…) |
+| `removed` | Non più presente in nessuna delle sorgenti in cui era stata trovata (vedi `resource_sources.removed_at`); torna `active` se ricompare |
+
+## Raccolta incrementale e record rimossi
+
+`harvest_runs.mode` indica se la raccolta era completa (`full`) o incrementale (`incremental`, solo i record modificati da `since`). `harvest_runs.complete` è vero quando una raccolta completa ha letto tutta la sorgente (nessun errore di rete, nessun limite di record raggiunto): solo allora `gwc.mark_removed(sorgente, raccolta)` segna come rimossi i record non più visti.
+
+## Enti normalizzati
+
+`organizations.canonical_id` collega una variante all'ente principale. La vista `v_organizations` dà per ogni ente l'ente principale (`main_id`, `main_name`) e il nome di base usato per i suggerimenti (`gwc.org_group_key`, es. "REGIONE PIEMONTE - Settore X" → "regione piemonte").
+
+## Sorgenti proposte
+
+Le sorgenti trovate nei link delle risorse hanno `origin = 'discovered'`, sono disattivate e hanno `discovery_status` = `proposed`; diventano `accepted` (e attive) o `ignored` dall'interfaccia. `discovered_count` dice quante risorse citano il servizio.
 
 ## Viste per l'interfaccia
 

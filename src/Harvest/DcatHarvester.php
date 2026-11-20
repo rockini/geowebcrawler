@@ -65,5 +65,7 @@ final class DcatHarvester implements Harvester
             $next = DcatMapper::nextPage($graph);
             $url = $next !== null && $next !== $url ? $next : null;
         }
+        // false: catalogo non letto per intero (limite di pagine)
+        return $url === null || isset($seen[$url]);
     }
 }

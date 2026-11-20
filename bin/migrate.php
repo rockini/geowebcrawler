@@ -23,6 +23,7 @@ $markers = [
     '005_indici.sql'               => "SELECT to_regclass('gwc.source_types') IS NOT NULL
                                         AND EXISTS (SELECT 1 FROM gwc.source_types WHERE code = 'stac')",
     '006_duplicati_meno_falsi.sql' => "SELECT to_regprocedure('gwc.title_numbers(text)') IS NOT NULL",
+    '007_indicizzazione.sql'       => "SELECT to_regclass('gwc.themes') IS NOT NULL",
 ];
 foreach ($markers as $name => $check) {
     if (in_array($name, $done, true) || !is_file(__DIR__ . "/../sql/$name")) {

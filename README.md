@@ -66,6 +66,28 @@ Tipi di sorgente supportati. Il limite di record per raccolta è 25000 per tutti
 
 Ogni record trovato viene confrontato con l'archivio: le coppie sospette finiscono nella pagina **Duplicati**, dove scegli quale tenere o le segni come diverse (vedi [docs/database.md](docs/database.md)).
 
+## Indicizzazione
+
+- **Raccolta incrementale**: per i cataloghi CSW e i portali CKAN, "Raccogli" chiede solo i record modificati dall'ultima raccolta riuscita (filtro su `Modified` / `metadata_modified`). Ogni 30 giorni (parametro `full_every_days`) la raccolta è completa; si può anche forzarla con il pulsante **Raccolta completa** nella scheda della sorgente. Se un catalogo non accetta il filtro per data, l'incrementale viene disattivato da solo (`"incremental": false` nei parametri).
+- **Record rimossi**: dopo una raccolta completa letta per intero, i record che la sorgente non contiene più sono segnati come rimossi; la risorsa diventa `removed` quando non è più in nessuna sorgente, e torna attiva se ricompare.
+- **Servizi e dataset collegati**: un servizio che dichiara i dataset che pubblica (`srv:operatesOn`, `dcat:servesDataset`) o un dataset che ha un link a un layer di un servizio già in archivio vengono collegati. Nella scheda si vedono i servizi che mostrano il dataset, e viceversa; un servizio e un dataset collegati non sono proposti come duplicati.
+- **Duplicati a gruppi**: nella pagina **Duplicati** le coppie collegate formano un gruppo; si sceglie la risorsa da tenere e si uniscono tutte le altre in un colpo. I gruppi con lo stesso identificativo si possono unire automaticamente.
+- **Ricerca**: nella pagina **Risorse** filtri a faccette (tipo, tema INSPIRE, ente, formato, accesso, licenza, sorgente, anno, stato) e ricerca nell'area visibile della mappa.
+- **Enti**: nella pagina **Enti** le varianti dello stesso ente ("REGIONE PIEMONTE - Settore…", "Regione Piemonte (Direzione…)") si riuniscono sotto un ente principale; il programma suggerisce i gruppi con lo stesso nome di base.
+- **Temi INSPIRE**: ogni risorsa riceve i temi INSPIRE riconosciuti dalle parole chiave (etichette e URI del registro INSPIRE, sinonimi italiani e inglesi), dalle categorie ISO o, in mancanza, dal titolo. Le regole sono nella tabella `gwc.theme_rules` e si possono ampliare.
+- **Nuove sorgenti**: i servizi WMS/WFS/WCS/WMTS e i cataloghi CSW citati nei link delle risorse, e non ancora presenti, vengono proposti nella pagina **Sorgenti > Sorgenti proposte**, dove si approvano o si ignorano.
+
+Le stesse operazioni da riga di comando:
+
+```
+php bin\index.php themes       ricalcola i temi INSPIRE (dopo aver cambiato gwc.theme_rules)
+php bin\index.php links        ricalcola i collegamenti servizio-dataset
+php bin\index.php discover     cerca nuove sorgenti
+php bin\index.php duplicates   ricontrolla i duplicati in tutto l'archivio
+php bin\index.php automerge    unisce i gruppi di duplicati con lo stesso identificativo
+php bin\index.php orgs         riunisce gli enti suggeriti
+```
+
 **Raccolta automatica**: nell'*Utilità di pianificazione* di Windows crea un'attività giornaliera che esegue `C:\percorso\php.exe` con argomenti `bin\harvest.php --due` e cartella iniziale quella del progetto. Ogni sorgente viene raccolta con la frequenza impostata nella sua scheda (default 7 giorni).
 
 **Se le richieste HTTPS falliscono** con "SSL certificate problem": scarica https://curl.se/ca/cacert.pem e indica il percorso in `config.php` alla voce `http.ca_bundle`.

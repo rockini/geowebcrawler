@@ -17,6 +17,9 @@ use GeoWebCrawler\Http\HttpClient;
  *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
  *   method       "post" o "get" (di default si provano entrambi)
  *   debug        true: nel log anche l'inizio della risposta del server a ogni tentativo fallito
+ *   incremental  false: sempre raccolta completa (di default, se possibile, si chiedono solo i record
+ *                modificati dall'ultima raccolta, con un filtro sulla proprieta' Modified)
+ *   full_every_days ogni quanti giorni fare comunque una raccolta completa (default 30)
  */
 final class CswHarvester implements Harvester
 {
@@ -45,6 +48,8 @@ final class CswHarvester implements Harvester
         $schema   = $p['schema'] ?? 'auto';
         $method   = strtolower($p['method'] ?? 'post');
         $cql      = $p['constraint'] ?? null;
+        $since    = $source['since'] ?? null;    // raccolta incrementale (data YYYY-MM-DD)
+        $complete = true;
 
         $useDcat = $schema === 'dcat';
         $useIso = !$useDcat && $schema !== 'dc';
@@ -53,11 +58,11 @@ final class CswHarvester implements Harvester
         // typeNames "csw:Record" e' la forma piu' compatibile (la usano GeoNetwork, OWSLib, QGIS)
         // Alcuni GeoNetwork 4 vanno in NullPointerException se la richiesta non ha un filtro:
         // in quel caso si riprova con un filtro che include tutto (AnyText like '%').
-        $attempts = function (bool $iso) use ($forced, $method, $cql): array {
+        $attempts = function (bool $iso) use ($forced, $method, $cql, $since): array {
             $all = [];
             foreach (['post', 'get'] as $m) {
                 foreach (array_filter(['csw:Record', $iso ? 'gmd:MD_Metadata' : null]) as $t) {
-                    foreach ($cql ? [false] : [false, true] as $matchAll) {
+                    foreach ($cql || $since ? [false] : [false, true] as $matchAll) {
                         $all[] = [$m, $t, $matchAll];
                     }
                 }
@@ -89,7 +94,7 @@ final class CswHarvester implements Harvester
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
             $xml = $this->getRecords($url, $method, $useDcat ? self::SCHEMA_DCAT : ($useIso ? self::SCHEMA_ISO : self::SCHEMA_DC),
-                $typeNames, $start, $n, $cql, $matchAll, $log);
+                $typeNames, $start, $n, $cql, $matchAll, $log, $since);
             $doc = $xml !== null ? Xml::load($xml) : null;
             $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
 
@@ -174,6 +179,7 @@ final class CswHarvester implements Harvester
                 } catch (\Throwable $e) {
                     // un record con metadati anomali non deve fermare la raccolta
                     $log("Record #$read non leggibile: " . $e->getMessage());
+                    $complete = false;
                     continue;
                 }
                 if ($record === null) {
@@ -189,11 +195,17 @@ final class CswHarvester implements Harvester
             }
             $start = $next;
         }
+        // false: catalogo non letto per intero (record illeggibili o limite max_records)
+        return $complete && $read < $max;
     }
 
     private function getRecords(string $url, string $method, string $schema, string $typeNames, int $start, int $n,
-                                ?string $cql, bool $matchAll, callable $log): ?string
+                                ?string $cql, bool $matchAll, callable $log, ?string $since = null): ?string
     {
+        $userCql = $cql;
+        if ($since !== null) {
+            $cql = ($cql ? "($cql) AND " : '') . "Modified >= '$since'";
+        }
         if ($matchAll && !$cql) {
             $cql = "AnyText like '%'";
         }
@@ -221,6 +233,11 @@ final class CswHarvester implements Harvester
                 $constraint = '<csw:Constraint version="1.1.0"><ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">'
                     . '<ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\\"><ogc:PropertyName>AnyText</ogc:PropertyName>'
                     . '<ogc:Literal>%</ogc:Literal></ogc:PropertyIsLike></ogc:Filter></csw:Constraint>';
+            } elseif ($since !== null && !$userCql) {
+                $constraint = '<csw:Constraint version="1.1.0"><ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">'
+                    . '<ogc:PropertyIsGreaterThanOrEqualTo><ogc:PropertyName>Modified</ogc:PropertyName>'
+                    . '<ogc:Literal>' . htmlspecialchars($since, ENT_XML1) . '</ogc:Literal></ogc:PropertyIsGreaterThanOrEqualTo>'
+                    . '</ogc:Filter></csw:Constraint>';
             } else {
                 $constraint = $cql
                     ? '<csw:Constraint version="1.1.0"><csw:CqlText>' . htmlspecialchars($cql, ENT_XML1) . '</csw:CqlText></csw:Constraint>'

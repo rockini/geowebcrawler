@@ -7,6 +7,10 @@
     <form method="post" class="inline"><?= V::csrfField() ?><input type="hidden" name="action" value="unmerge"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"><button class="link">Annulla l'unione</button></form>
   </div>
 <?php endif; ?>
+<?php if ($r['status'] === 'removed'): ?>
+  <div class="flash warn">Questa risorsa non compare piu' in nessuna delle sorgenti in cui era stata trovata (vedi Provenienza).
+    Se ricompare in una raccolta torna attiva da sola.</div>
+<?php endif; ?>
 <?php foreach ($candidates as $c): ?>
   <div class="flash warn">Possibile duplicato di <a href="<?= V::url('resource', ['id' => $c['other_id']]) ?>"><?= V::e($c['other_title']) ?></a>
     (<?= V::e($c['reason']) ?>). <a href="<?= V::url('duplicates') ?>">Decidi nella pagina Duplicati</a>.</div>
@@ -19,6 +23,7 @@
   <tr><th>Identificativo</th><td class="mono"><?= V::e($r['external_id'] ?? '–') ?></td></tr>
   <tr><th>Descrizione</th><td><?= nl2br(V::e($r['abstract'] ?? '–')) ?></td></tr>
   <tr><th>Parole chiave</th><td><?= V::e(implode(', ', RR::parsePgArray($r['keywords']))) ?: '–' ?></td></tr>
+  <tr><th>Temi INSPIRE</th><td><?php foreach ($themes as $t): ?><a class="chip" href="<?= V::url('resources', ['theme' => $t['code']]) ?>"><?= V::e($t['label']) ?></a> <?php endforeach; ?><?= $themes ? '' : '–' ?></td></tr>
   <tr><th>Categorie</th><td><?= V::e(implode(', ', RR::parsePgArray($r['topic_categories']))) ?: '–' ?></td></tr>
   <tr><th>Enti</th><td><?php foreach ($parties as $p): ?><?= V::e($p['name']) ?> <span class="muted">(<?= V::e($p['role']) ?>)</span><?= $p['email'] ? ' · ' . V::e($p['email']) : '' ?><br><?php endforeach; ?><?= $parties ? '' : '–' ?></td></tr>
   <tr><th>Date</th><td>creazione <?= V::date($r['date_created']) ?> · pubblicazione <?= V::date($r['date_published']) ?> · revisione <?= V::date($r['date_revised']) ?></td></tr>
@@ -80,13 +85,25 @@
   <?php endforeach; ?>
 </table>
 
+<?php if ($services || $datasets): ?>
+<h2><?= $datasets ? 'Dataset pubblicati da questo servizio' : 'Servizi che pubblicano questo dataset' ?></h2>
+<ul class="links">
+  <?php foreach ($datasets ?: $services as $l): ?>
+    <li><a href="<?= V::url('resource', ['id' => $l['id']]) ?>"><?= V::e($l['title']) ?></a>
+      <span class="muted">(<?= $l['origin'] === 'metadata' ? 'dichiarato nei metadati' : 'stesso servizio nei link' ?>)</span>
+      <?php if ($l['status'] !== 'active'): ?><span class="tag"><?= V::e($l['status']) ?></span><?php endif; ?></li>
+  <?php endforeach; ?>
+</ul>
+<?php endif; ?>
+
 <h2>Provenienza</h2>
 <table>
   <tr><th>Sorgente</th><th>Riferimento nel record</th><th>Prima volta</th><th>Ultima volta</th></tr>
   <?php foreach ($origins as $o): ?>
   <tr><td><a href="<?= V::url('source', ['id' => $o['id']]) ?>"><?= V::e($o['name']) ?></a></td>
       <td class="url mono"><?= V::e($o['record_ref']) ?></td>
-      <td><?= V::date($o['first_seen_at'], true) ?></td><td><?= V::date($o['last_seen_at'], true) ?></td></tr>
+      <td><?= V::date($o['first_seen_at'], true) ?></td><td><?= V::date($o['last_seen_at'], true) ?>
+        <?php if ($o['removed_at']): ?><br><span class="tag">non piu' presente dal <?= V::date($o['removed_at']) ?></span><?php endif; ?></td></tr>
   <?php endforeach; ?>
 </table>
 <?php if ($merged): ?>
