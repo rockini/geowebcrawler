@@ -76,6 +76,14 @@ final class CswHarvester implements Harvester
         $caps = $this->http->get($url . (str_contains($url, '?') ? '&' : '?') . 'service=CSW&version=2.0.2&request=GetCapabilities');
         if (!$caps->ok()) {
             $log('GetCapabilities non risponde (' . $caps->problem() . '): provo comunque GetRecords');
+        } elseif (($final = preg_replace('~\?.*$~', '', $caps->finalUrl)) && $final !== preg_replace('~\?.*$~', '', $url)
+                  && !str_contains($url, '?')) {
+            // il server ha reindirizzato (es. da http a https): la sessione vale per il nuovo indirizzo
+            $log("Il catalogo ha reindirizzato a $final: uso questo indirizzo");
+            $url = $final;
+        }
+        if ($caps->ok()) {
+            $log('GetCapabilities: HTTP ' . $caps->status . ' in ' . $caps->timeMs . ' ms, sessione aperta');
         }
 
         while ($read < $max) {
