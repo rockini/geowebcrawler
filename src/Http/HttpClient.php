@@ -8,6 +8,10 @@ use GeoWebCrawler\Config;
 /** Piccolo client HTTP basato su cURL. */
 final class HttpClient
 {
+    // Senza "crawler", "bot" o "spider": GeoNetwork tratta questi client come motori di ricerca
+    // (niente sessione) e risponde alle richieste CSW con NullPointerException.
+    public const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GWC/0.1';
+
     private int $timeout;
     private string $userAgent;
     private ?string $cookieFile = null;
@@ -15,7 +19,10 @@ final class HttpClient
     public function __construct(?int $timeout = null, ?string $userAgent = null)
     {
         $this->timeout   = $timeout   ?? (int) Config::get('http.timeout', 30);
-        $this->userAgent = $userAgent ?? (string) Config::get('http.user_agent', 'Mozilla/5.0 (compatible; GeoWebCrawler/0.1)');
+        $this->userAgent = $userAgent ?? (string) Config::get('http.user_agent', self::DEFAULT_UA);
+        if (preg_match('/crawl|bot\b|spider/i', $this->userAgent)) {
+            $this->userAgent = self::DEFAULT_UA;   // vedi sopra: alcuni server rifiutano questi nomi
+        }
     }
 
     public function __destruct()
