@@ -76,3 +76,20 @@ button:disabled { opacity: .6; }
 .group h3 { margin: 0 0 .6rem; font-size: 1rem; }
 .group table td, .group table th { font-size: .9rem; }
 .links { margin: 0; padding-left: 1.1rem; }
+
+/* duplicati: confronto, grafo e mappa, regole */
+table.cmp tr.keep td { background: #eef6ee; }
+table.cmp tr.out td { opacity: .45; }
+table.cmp td.diff { background: #fff4d6; }
+.viz { display: grid; grid-template-columns: 3fr 2fr; gap: .8rem; margin-top: .8rem; }
+.graph { height: 420px; border: 1px solid var(--line); border-radius: 6px; background: #fcfcfd; }
+.graph.big { height: 620px; background: var(--card); margin-bottom: 1rem; }
+.gmap { height: 420px; border: 1px solid var(--line); border-radius: 6px; }
+.legend .sw { display: inline-block; width: 1.4rem; height: .3rem; vertical-align: middle; margin: 0 .2rem 0 .6rem; }
+form.rules fieldset { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 1rem; padding: .6rem 1rem; }
+form.rules legend { font-weight: 600; padding: 0 .3rem; }
+form.rules > fieldset > label { display: block; margin: .25rem 0; }
+form.rules .row { display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; margin: .6rem 0; }
+form.rules input[type=number] { width: 5.5rem; }
+@media (max-width: 900px) { .viz { grid-template-columns: 1fr; } }
+table.cmp th:nth-child(-n+2), table.cmp td:nth-child(-n+2) { width: 3.2rem; text-align: center; }

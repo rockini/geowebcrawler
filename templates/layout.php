@@ -12,7 +12,7 @@
   <a class="brand" href="?">GeoWebCrawler</a>
   <nav>
     <?php foreach (['home' => 'Riepilogo', 'sources' => 'Sorgenti', 'resources' => 'Risorse', 'duplicates' => 'Duplicati', 'orgs' => 'Enti'] as $p => $label): ?>
-      <a href="<?= V::url($p) ?>" class="<?= $cur === $p || (in_array($cur, ['source', 'proposals'], true) && $p === 'sources') || ($cur === 'resource' && $p === 'resources') ? 'on' : '' ?>"><?= $label ?></a>
+      <a href="<?= V::url($p) ?>" class="<?= $cur === $p || (in_array($cur, ['source', 'proposals'], true) && $p === 'sources') || ($cur === 'resource' && $p === 'resources') || ($cur === 'dup_rules' && $p === 'duplicates') ? 'on' : '' ?>"><?= $label ?></a>
     <?php endforeach; ?>
   </nav>
 </header>

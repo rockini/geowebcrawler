@@ -72,6 +72,8 @@ Ogni record trovato viene confrontato con l'archivio: le coppie sospette finisco
 - **Record rimossi**: dopo una raccolta completa letta per intero, i record che la sorgente non contiene più sono segnati come rimossi; la risorsa diventa `removed` quando non è più in nessuna sorgente, e torna attiva se ricompare.
 - **Servizi e dataset collegati**: un servizio che dichiara i dataset che pubblica (`srv:operatesOn`, `dcat:servesDataset`) o un dataset che ha un link a un layer di un servizio già in archivio vengono collegati. Nella scheda si vedono i servizi che mostrano il dataset, e viceversa; un servizio e un dataset collegati non sono proposti come duplicati.
 - **Duplicati a gruppi**: nella pagina **Duplicati** le coppie collegate formano un gruppo; si sceglie la risorsa da tenere e si uniscono tutte le altre in un colpo. I gruppi con lo stesso identificativo si possono unire automaticamente.
+- **Unione automatica con regole**: dalla pagina **Duplicati** → *Unione automatica con regole…* si scelgono le regole (stesso identificativo; stesso URL e titolo simile; titolo quasi uguale con stesso ente e stessa area; titolo identico e stessa area) e le soglie, si guarda l'anteprima e si applica. Una seconda regola scarta le coppie con titolo solo simile, enti diversi e aree lontane. Ogni unione si annulla dalla scheda della risorsa.
+- **Duplicati in grafico**: ogni gruppo ha il pulsante *Grafo e mappa* (risorse come cerchi, coppie come linee colorate per motivo, aree sulla mappa; clic su un cerchio = tieni quella risorsa) e c'e' un grafo di tutti i gruppi della pagina. Nel confronto le celle diverse dalla risorsa tenuta sono evidenziate e si possono escludere dal gruppo le risorse che non c'entrano. Si filtrano i gruppi per parola, motivo e dimensione.
 - **Ricerca**: nella pagina **Risorse** filtri a faccette (tipo, tema INSPIRE, ente, formato, accesso, licenza, sorgente, anno, stato) e ricerca nell'area visibile della mappa.
 - **Enti**: nella pagina **Enti** le varianti dello stesso ente ("REGIONE PIEMONTE - Settore…", "Regione Piemonte (Direzione…)") si riuniscono sotto un ente principale; il programma suggerisce i gruppi con lo stesso nome di base.
 - **Temi INSPIRE**: ogni risorsa riceve i temi INSPIRE riconosciuti dalle parole chiave (etichette e URI del registro INSPIRE, sinonimi italiani e inglesi), dalle categorie ISO o, in mancanza, dal titolo. Le regole sono nella tabella `gwc.theme_rules` e si possono ampliare.
@@ -85,6 +87,7 @@ php bin\index.php links        ricalcola i collegamenti servizio-dataset
 php bin\index.php discover     cerca nuove sorgenti
 php bin\index.php duplicates   ricontrolla i duplicati in tutto l'archivio
 php bin\index.php automerge    unisce i gruppi di duplicati con lo stesso identificativo
+php bin\index.php rules        anteprima delle regole automatiche (--apply unisce, --reject scarta)
 php bin\index.php orgs         riunisce gli enti suggeriti
 ```
 
