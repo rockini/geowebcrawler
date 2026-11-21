@@ -3,7 +3,7 @@
 $f = $search->f;
 $link = fn(array $o) => V::e('?' . http_build_query(['p' => 'resources'] + $search->params($o)));
 $names = ['type' => 'Tipo', 'theme' => 'Tema INSPIRE', 'org' => 'Ente', 'format' => 'Formato', 'ep' => 'Accesso',
-          'license' => 'Licenza', 'source' => 'Sorgente', 'year' => 'Anno', 'status' => 'Stato'];
+          'license' => 'Licenza', 'source' => 'Sorgente', 'year' => 'Anno', 'chk' => 'Verifica dei servizi', 'status' => 'Stato'];
 $typeLabels = ['dataset' => 'dataset', 'series' => 'serie', 'service' => 'servizio', 'other' => 'altro'];
 $statusLabels = ['active' => 'attive', 'pending' => 'da revisionare', 'rejected' => 'scartate',
                  'duplicate' => 'unite ad altre', 'removed' => 'rimosse dalla sorgente'];

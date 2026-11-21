@@ -8,11 +8,12 @@ use PDO;
 /**
  * Ricerca delle risorse con filtri combinabili e faccette (conteggi per ogni valore dei filtri).
  * Filtri: q (testo), type, theme, org (ente principale), format, ep (tipo di accesso), license,
- * source, year, status, bbox (ovest,sud,est,nord: risorse la cui estensione interseca il riquadro).
+ * source, year, status, bbox (ovest,sud,est,nord: risorse la cui estensione interseca il riquadro),
+ * chk (verifica dei servizi: ok = almeno un punto di accesso funziona, error = nessuno funziona, never = mai verificati).
  */
 final class ResourceSearch
 {
-    public const FILTERS = ['q', 'type', 'theme', 'org', 'format', 'ep', 'license', 'source', 'year', 'status', 'bbox'];
+    public const FILTERS = ['q', 'type', 'theme', 'org', 'format', 'ep', 'license', 'source', 'year', 'status', 'bbox', 'chk'];
 
     /** @var array<string,string> */
     public array $f = [];
@@ -106,6 +107,13 @@ final class ResourceSearch
                 $a[':year'] = (int) $f['year'];
             }
         }
+        $w[] = match ($f['chk']) {
+            'ok'    => "EXISTS (SELECT 1 FROM gwc.endpoints e WHERE e.resource_id = r.id AND e.last_check_status IN ('ok','warn'))",
+            'error' => "EXISTS (SELECT 1 FROM gwc.endpoints e WHERE e.resource_id = r.id AND e.last_check_status = 'error')
+                        AND NOT EXISTS (SELECT 1 FROM gwc.endpoints e WHERE e.resource_id = r.id AND e.last_check_status IN ('ok','warn'))",
+            'never' => "NOT EXISTS (SELECT 1 FROM gwc.endpoints e WHERE e.resource_id = r.id AND e.last_check_at IS NOT NULL)",
+            default => 'TRUE',
+        };
         if ($b = $this->bbox()) {
             $w[] = 'r.bbox && ST_MakeEnvelope(:bw, :bs, :be, :bn, 4326)';
             [$a[':bw'], $a[':bs'], $a[':be'], $a[':bn']] = $b;
@@ -175,6 +183,14 @@ final class ResourceSearch
                                        FROM (SELECT extract(year FROM COALESCE(r.date_revised, r.date_published, r.date_created))::int AS y
                                                FROM gwc.resources r $w) x
                                       GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 25");
+        $out['chk'] = $this->query("SELECT v, label, count(*) AS n FROM (
+                                        SELECT CASE WHEN bool_or(e.last_check_status IN ('ok','warn')) THEN 'ok'
+                                                    WHEN bool_or(e.last_check_status = 'error') THEN 'error' ELSE 'never' END AS v,
+                                               CASE WHEN bool_or(e.last_check_status IN ('ok','warn')) THEN 'almeno un accesso funziona'
+                                                    WHEN bool_or(e.last_check_status = 'error') THEN 'nessun accesso funziona'
+                                                    ELSE 'mai verificate' END AS label
+                                          FROM gwc.resources r LEFT JOIN gwc.endpoints e ON e.resource_id = r.id
+                                          $w GROUP BY r.id) x GROUP BY 1, 2 ORDER BY 3 DESC");
         $out['status'] = $this->withoutStatus($w);
         return $out;
     }

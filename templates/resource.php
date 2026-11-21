@@ -70,8 +70,13 @@
 </div>
 
 <h2>Punti di accesso</h2>
+<?php if ($endpoints): ?>
+<form method="post" class="inline"><?= V::csrfField() ?><input type="hidden" name="action" value="check_start">
+  <input type="hidden" name="resource" value="<?= (int) $r['id'] ?>"><input type="hidden" name="back" value="<?= V::e(V::url('resource', ['id' => $r['id']])) ?>">
+  <button class="secondary">Verifica ora i punti di accesso</button></form>
+<?php endif; ?>
 <table>
-  <tr><th>Tipo</th><th>URL</th><th>Layer</th><th>Formato</th><th>Versione</th><th>Ultimo test</th></tr>
+  <tr><th>Tipo</th><th>URL</th><th>Layer</th><th>Formato</th><th>Versione</th><th>Ultima verifica</th></tr>
   <?php foreach ($endpoints as $e): ?>
   <tr>
     <td><?= V::e($e['type_label']) ?></td>
@@ -80,7 +85,11 @@
     <td class="mono"><?= V::e($e['layer_name']) ?></td>
     <td><?= V::e($e['format_label']) ?></td>
     <td><?= V::e($e['service_version']) ?></td>
-    <td><?= $e['last_check_at'] ? ($e['last_check_ok'] ? '✔ ' : '✘ ') . V::date($e['last_check_at'], true) : '<span class="muted">mai (fase 2)</span>' ?></td>
+    <td><?php if ($e['last_check_at']): ?>
+          <a class="st <?= V::e($e['last_check_status'] ?? ($e['last_check_ok'] ? 'ok' : 'error')) ?>" href="<?= V::url('check', ['key' => $e['check_key']]) ?>"><?= ['ok' => 'funziona', 'warn' => 'avviso', 'error' => 'non funziona'][$e['last_check_status'] ?? ($e['last_check_ok'] ? 'ok' : 'error')] ?></a>
+          <span class="muted small"><?= V::date($e['last_check_at'], true) ?></span>
+          <?php if ($e['last_check_note']): ?><div class="small"><?= V::e($e['last_check_note']) ?></div><?php endif; ?>
+        <?php else: ?><span class="muted">mai</span><?php endif; ?></td>
   </tr>
   <?php endforeach; ?>
 </table>

@@ -320,7 +320,7 @@ final class OgcCapabilitiesHarvester implements Harvester
         return $parts[0] . ($keep ? '?' . implode('&', $keep) : '');
     }
 
-    private static function capabilitiesUrl(string $base, string $svc, string $original): string
+    public static function capabilitiesUrl(string $base, string $svc, string $original): string
     {
         // WMTS RESTful: l'indirizzo e' gia' il documento
         if (preg_match('~WMTSCapabilities\.xml$~i', $original)) {
