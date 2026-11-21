@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WMT_MS_Capabilities version="1.1.1">
+  <Service><Name>OGC:WMS</Name><Title>Vecchio WMS comunale</Title></Service>
+  <Capability><Layer><Title>root</Title><SRS>EPSG:3003</SRS>
+    <LatLonBoundingBox minx="11.1" miny="43.7" maxx="11.4" maxy="43.9"/>
+    <Layer><Name>catasto</Name><Title>Catasto</Title></Layer>
+  </Layer></Capability>
+</WMT_MS_Capabilities>

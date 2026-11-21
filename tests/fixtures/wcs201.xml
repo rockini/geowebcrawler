@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wcs:Capabilities version="2.0.1" xmlns:wcs="http://www.opengis.net/wcs/2.0" xmlns:ows="http://www.opengis.net/ows/2.0">
+  <ows:ServiceIdentification><ows:Title>WCS Regionale</ows:Title></ows:ServiceIdentification>
+  <ows:ServiceProvider><ows:ProviderName>Regione Esempio</ows:ProviderName></ows:ServiceProvider>
+  <wcs:Contents>
+    <wcs:CoverageSummary>
+      <ows:Title>DTM 10 m</ows:Title>
+      <wcs:CoverageId>dtm__10m</wcs:CoverageId>
+      <ows:WGS84BoundingBox><ows:LowerCorner>9.5 42.2</ows:LowerCorner><ows:UpperCorner>12.5 44.5</ows:UpperCorner></ows:WGS84BoundingBox>
+    </wcs:CoverageSummary>
+  </wcs:Contents>
+</wcs:Capabilities>

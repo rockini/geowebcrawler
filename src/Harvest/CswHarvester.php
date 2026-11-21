@@ -12,15 +12,20 @@ use GeoWebCrawler\Http\HttpClient;
  * Parametri della sorgente (campo params):
  *   max_records  numero massimo di record da leggere (default: harvest.max_records in config.php, 25000)
  *   page_size    record per richiesta (default 50)
- *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso" oppure "dc"
+ *   schema       "auto" (default: prova ISO 19139, se fallisce usa Dublin Core), "iso", "dc"
+ *                oppure "dcat" (GeoDCAT-AP / DCAT-AP, offerto per esempio da GeoNetwork 4)
  *   constraint   filtro CQL facoltativo, es. "AnyText like '%idrografia%'"
  *   method       "post" o "get" (di default si provano entrambi)
  *   debug        true: nel log anche l'inizio della risposta del server a ogni tentativo fallito
+ *   incremental  false: sempre raccolta completa (di default, se possibile, si chiedono solo i record
+ *                modificati dall'ultima raccolta, con un filtro sulla proprieta' Modified)
+ *   full_every_days ogni quanti giorni fare comunque una raccolta completa (default 30)
  */
 final class CswHarvester implements Harvester
 {
     private const SCHEMA_ISO = 'http://www.isotc211.org/2005/gmd';
     private const SCHEMA_DC  = 'http://www.opengis.net/cat/csw/2.0.2';
+    private const SCHEMA_DCAT = 'http://www.w3.org/ns/dcat#';
 
     /** Descrizione dell'ultima richiesta GetRecords (URL completo per GET, URL e corpo per POST). */
     private string $lastRequest = '';
@@ -29,6 +34,7 @@ final class CswHarvester implements Harvester
         private HttpClient $http = new HttpClient(),
         private Iso19139Parser $iso = new Iso19139Parser(),
         private DublinCoreParser $dc = new DublinCoreParser(),
+        private Rdf\DcatMapper $dcat = new Rdf\DcatMapper(),
     ) {}
 
     public function harvest(array $source, callable $log): \Generator
@@ -42,18 +48,21 @@ final class CswHarvester implements Harvester
         $schema   = $p['schema'] ?? 'auto';
         $method   = strtolower($p['method'] ?? 'post');
         $cql      = $p['constraint'] ?? null;
+        $since    = $source['since'] ?? null;    // raccolta incrementale (data YYYY-MM-DD)
+        $complete = true;
 
-        $useIso = $schema !== 'dc';
+        $useDcat = $schema === 'dcat';
+        $useIso = !$useDcat && $schema !== 'dc';
         $forced = isset($p['method']);
         // varianti della richiesta da provare in ordine se il catalogo risponde con un errore:
         // typeNames "csw:Record" e' la forma piu' compatibile (la usano GeoNetwork, OWSLib, QGIS)
         // Alcuni GeoNetwork 4 vanno in NullPointerException se la richiesta non ha un filtro:
         // in quel caso si riprova con un filtro che include tutto (AnyText like '%').
-        $attempts = function (bool $iso) use ($forced, $method, $cql): array {
+        $attempts = function (bool $iso) use ($forced, $method, $cql, $since): array {
             $all = [];
             foreach (['post', 'get'] as $m) {
                 foreach (array_filter(['csw:Record', $iso ? 'gmd:MD_Metadata' : null]) as $t) {
-                    foreach ($cql ? [false] : [false, true] as $matchAll) {
+                    foreach ($cql || $since ? [false] : [false, true] as $matchAll) {
                         $all[] = [$m, $t, $matchAll];
                     }
                 }
@@ -84,7 +93,8 @@ final class CswHarvester implements Harvester
 
         while ($read < $max) {
             $n = min($pageSize, $max - $read);
-            $xml = $this->getRecords($url, $method, $useIso, $typeNames, $start, $n, $cql, $matchAll, $log);
+            $xml = $this->getRecords($url, $method, $useDcat ? self::SCHEMA_DCAT : ($useIso ? self::SCHEMA_ISO : self::SCHEMA_DC),
+                $typeNames, $start, $n, $cql, $matchAll, $log, $since);
             $doc = $xml !== null ? Xml::load($xml) : null;
             $error = $doc === null ? 'risposta non XML' : $this->exception($doc);
 
@@ -124,7 +134,29 @@ final class CswHarvester implements Harvester
             $next    = (int) $results->getAttribute('nextRecord');
             if ($start === 1) {
                 $log(sprintf('Record disponibili nel catalogo: %d (ne leggo al massimo %d, formato %s)',
-                    $matched, $max, $useIso ? 'ISO 19139' : 'Dublin Core'));
+                    $matched, $max, $useDcat ? 'GeoDCAT-AP' : ($useIso ? 'ISO 19139' : 'Dublin Core')));
+            }
+
+            if ($useDcat) {
+                // ogni record e' un documento rdf:RDF (o un nodo DCAT): si legge come grafo RDF
+                $records = 0;
+                foreach ($results->childNodes as $child) {
+                    if (!$child instanceof DOMElement) {
+                        continue;
+                    }
+                    $records++;
+                    $graph = (new Rdf\RdfXmlParser())->parse($child);
+                    foreach ($this->dcat->records($graph, 'GeoDCAT-AP (CSW)') as $record) {
+                        $record->metadataUrl ??= $this->recordByIdUrl($url, $record->externalId, self::SCHEMA_DCAT);
+                        yield $record;
+                    }
+                }
+                $read += $records;
+                if ($records === 0 || $next <= 0 || ($matched > 0 && $next > $matched) || $next <= $start) {
+                    break;
+                }
+                $start = $next;
+                continue;
             }
 
             $nodes = $useIso
@@ -147,13 +179,14 @@ final class CswHarvester implements Harvester
                 } catch (\Throwable $e) {
                     // un record con metadati anomali non deve fermare la raccolta
                     $log("Record #$read non leggibile: " . $e->getMessage());
+                    $complete = false;
                     continue;
                 }
                 if ($record === null) {
                     $log("Record #$read ignorato: titolo mancante");
                     continue;
                 }
-                $record->metadataUrl = $this->recordByIdUrl($url, $record->externalId, $useIso);
+                $record->metadataUrl = $this->recordByIdUrl($url, $record->externalId, $useIso ? self::SCHEMA_ISO : self::SCHEMA_DC);
                 yield $record;
             }
 
@@ -162,15 +195,20 @@ final class CswHarvester implements Harvester
             }
             $start = $next;
         }
+        // false: catalogo non letto per intero (record illeggibili o limite max_records)
+        return $complete && $read < $max;
     }
 
-    private function getRecords(string $url, string $method, bool $iso, string $typeNames, int $start, int $n,
-                                ?string $cql, bool $matchAll, callable $log): ?string
+    private function getRecords(string $url, string $method, string $schema, string $typeNames, int $start, int $n,
+                                ?string $cql, bool $matchAll, callable $log, ?string $since = null): ?string
     {
+        $userCql = $cql;
+        if ($since !== null) {
+            $cql = ($cql ? "($cql) AND " : '') . "Modified >= '$since'";
+        }
         if ($matchAll && !$cql) {
             $cql = "AnyText like '%'";
         }
-        $schema = $iso ? self::SCHEMA_ISO : self::SCHEMA_DC;
 
         if ($method === 'get') {
             $q = [
@@ -195,6 +233,11 @@ final class CswHarvester implements Harvester
                 $constraint = '<csw:Constraint version="1.1.0"><ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">'
                     . '<ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\\"><ogc:PropertyName>AnyText</ogc:PropertyName>'
                     . '<ogc:Literal>%</ogc:Literal></ogc:PropertyIsLike></ogc:Filter></csw:Constraint>';
+            } elseif ($since !== null && !$userCql) {
+                $constraint = '<csw:Constraint version="1.1.0"><ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">'
+                    . '<ogc:PropertyIsGreaterThanOrEqualTo><ogc:PropertyName>Modified</ogc:PropertyName>'
+                    . '<ogc:Literal>' . htmlspecialchars($since, ENT_XML1) . '</ogc:Literal></ogc:PropertyIsGreaterThanOrEqualTo>'
+                    . '</ogc:Filter></csw:Constraint>';
             } else {
                 $constraint = $cql
                     ? '<csw:Constraint version="1.1.0"><csw:CqlText>' . htmlspecialchars($cql, ENT_XML1) . '</csw:CqlText></csw:Constraint>'
@@ -246,7 +289,7 @@ final class CswHarvester implements Harvester
         return null;
     }
 
-    private function recordByIdUrl(string $url, ?string $id, bool $iso): ?string
+    private function recordByIdUrl(string $url, ?string $id, string $schema): ?string
     {
         if ($id === null) {
             return null;
@@ -254,7 +297,7 @@ final class CswHarvester implements Harvester
         $base = preg_replace('/\?.*$/', '', $url);
         return $base . '?' . http_build_query([
             'service' => 'CSW', 'version' => '2.0.2', 'request' => 'GetRecordById',
-            'id' => $id, 'elementSetName' => 'full', 'outputSchema' => $iso ? self::SCHEMA_ISO : self::SCHEMA_DC,
+            'id' => $id, 'elementSetName' => 'full', 'outputSchema' => $schema,
         ]);
     }
 }

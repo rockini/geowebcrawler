@@ -19,7 +19,8 @@ $arg = $argv[1] ?? '';
 if (ctype_digit($arg)) {
     $ids = [(int) $arg];
 } elseif ($arg === '--all' || $arg === '--due') {
-    $sql = "SELECT id FROM gwc.sources WHERE enabled AND source_type IN ('csw','webpage')";
+    $types = "'" . implode("','", HarvestRunner::SUPPORTED) . "'";
+    $sql = "SELECT id FROM gwc.sources WHERE enabled AND source_type IN ($types)";
     if ($arg === '--due') {
         $sql .= " AND (last_harvest_at IS NULL OR last_harvest_at + harvest_every <= now())";
     }

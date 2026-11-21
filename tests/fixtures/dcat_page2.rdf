@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcat="http://www.w3.org/ns/dcat#"
+  xmlns:dct="http://purl.org/dc/terms/" xmlns:hydra="http://www.w3.org/ns/hydra/core#">
+  <hydra:PagedCollection rdf:about="http://127.0.0.1:8765/catalog.rdf?page=2">
+    <hydra:previousPage>http://127.0.0.1:8765/catalog.rdf?page=1</hydra:previousPage>
+  </hydra:PagedCollection>
+  <dcat:Dataset rdf:about="https://dati.regione.example/dataset/dtm">
+    <dct:title>Modello digitale del terreno</dct:title>
+    <dct:type rdf:resource="http://inspire.ec.europa.eu/metadata-codelist/ResourceType/series"/>
+    <dcat:distribution><dcat:Distribution>
+      <dcat:accessService><dcat:DataService>
+        <dct:title>WCS DTM</dct:title>
+        <dcat:endpointURL rdf:resource="https://geo.regione.example/wcs"/>
+        <dct:conformsTo rdf:resource="http://www.opengis.net/def/serviceType/ogc/wcs"/>
+      </dcat:DataService></dcat:accessService>
+    </dcat:Distribution></dcat:distribution>
+  </dcat:Dataset>
+</rdf:RDF>

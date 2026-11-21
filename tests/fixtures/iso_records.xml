@@ -89,4 +89,21 @@
     </gmd:EX_GeographicBoundingBox></gmd:geographicElement></gmd:EX_Extent></gmd:extent>
   </gmd:MD_DataIdentification></gmd:identificationInfo>
 </gmd:MD_Metadata>
+<gmd:MD_Metadata>
+  <gmd:fileIdentifier><gco:CharacterString>r_toscan:wms-ctr</gco:CharacterString></gmd:fileIdentifier>
+  <gmd:hierarchyLevel><gmd:MD_ScopeCode codeList="x" codeListValue="service">service</gmd:MD_ScopeCode></gmd:hierarchyLevel>
+  <gmd:identificationInfo><srv:SV_ServiceIdentification>
+    <gmd:citation><gmd:CI_Citation><gmd:title><gco:CharacterString>Servizio WMS della cartografia tecnica</gco:CharacterString></gmd:title></gmd:CI_Citation></gmd:citation>
+    <gmd:descriptiveKeywords><gmd:MD_Keywords><gmd:keyword><gmx:Anchor xlink:href="http://inspire.ec.europa.eu/theme/hy">Idrografia</gmx:Anchor></gmd:keyword></gmd:MD_Keywords></gmd:descriptiveKeywords>
+    <srv:serviceType><gco:LocalName>view</gco:LocalName></srv:serviceType>
+    <srv:operatesOn uuidref="r_toscan:ctr10k"/>
+    <srv:operatesOn xlink:href="https://geo.example.it/csw?service=CSW&amp;request=GetRecordById&amp;id=r_toscan:idro"/>
+  </srv:SV_ServiceIdentification></gmd:identificationInfo>
+  <gmd:distributionInfo><gmd:MD_Distribution><gmd:transferOptions><gmd:MD_DigitalTransferOptions>
+    <gmd:onLine><gmd:CI_OnlineResource>
+      <gmd:linkage><gmd:URL>https://www502.regione.toscana.it/wmsraster/com.rt.wms.RTmap/wms?map=wmsctr&amp;service=WMS&amp;request=GetCapabilities</gmd:URL></gmd:linkage>
+      <gmd:protocol><gco:CharacterString>OGC:WMS</gco:CharacterString></gmd:protocol>
+    </gmd:CI_OnlineResource></gmd:onLine>
+  </gmd:MD_DigitalTransferOptions></gmd:transferOptions></gmd:MD_Distribution></gmd:distributionInfo>
+</gmd:MD_Metadata>
 </records>

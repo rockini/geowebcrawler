@@ -35,6 +35,8 @@ final class Record
     public array $parties = [];
     /** @var Endpoint[] */
     public array $endpoints = [];
+    /** @var string[] per un servizio: identificativi o URL dei dataset che pubblica (srv:operatesOn, dcat:servesDataset) */
+    public array $servesRefs = [];
 
     public function __construct(
         public string $recordRef,   // identifica il record nella sorgente (id CSW o URL)

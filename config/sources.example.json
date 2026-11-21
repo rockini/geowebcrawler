@@ -1,11 +1,13 @@
 {
-    "_info": "Sorgenti di partenza (gli URL degli esempi sono da verificare). Copia in sources.json e modifica. Tipi: csw, webpage, ckan (feed, blog, social nella versione estesa).",
+    "_info": "Sorgenti di partenza (gli URL degli esempi sono indicativi: verificali prima dell'uso). Copia in sources.json e modifica. Tipi: csw, ogc_service, ckan, dcat, stac, webpage (feed, blog, social nella versione estesa). Parametri: vedi README.",
     "sources": [
         {
             "name": "Repertorio Nazionale Dati Territoriali (RNDT) - CSW",
             "type": "csw",
             "url": "https://geodati.gov.it/RNDT/csw",
-            "params": { "max_records": 500 }
+            "params": {
+                "max_records": 500
+            }
         },
         {
             "name": "Geoportale INSPIRE - CSW",
@@ -16,7 +18,52 @@
             "name": "Esempio pagina web con link a dati",
             "type": "webpage",
             "url": "https://www.example.org/opendata/cartografia",
-            "params": { "depth": 1 },
+            "params": {
+                "depth": 1
+            },
+            "enabled": false
+        },
+        {
+            "name": "Esempio servizio OGC (GeoServer)",
+            "type": "ogc_service",
+            "url": "https://geoserver.example.org/geoserver/ows",
+            "params": {
+                "services": [
+                    "WMS",
+                    "WFS"
+                ]
+            },
+            "enabled": false
+        },
+        {
+            "name": "dati.gov.it - CKAN",
+            "type": "ckan",
+            "url": "https://www.dati.gov.it/opendata",
+            "params": {
+                "max_records": 500
+            },
+            "enabled": false
+        },
+        {
+            "name": "Esempio catalogo DCAT-AP_IT (RDF)",
+            "type": "dcat",
+            "url": "https://opendata.example.it/catalog.rdf?page=1",
+            "enabled": false
+        },
+        {
+            "name": "Esempio CSW GeoNetwork in GeoDCAT-AP",
+            "type": "csw",
+            "url": "https://geonetwork.example.org/geonetwork/srv/eng/csw",
+            "params": {
+                "schema": "dcat",
+                "max_records": 200
+            },
+            "enabled": false
+        },
+        {
+            "name": "Earth Search (STAC API)",
+            "type": "stac",
+            "url": "https://earth-search.aws.element84.com/v1",
             "enabled": false
         }
     ]

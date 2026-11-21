@@ -134,6 +134,14 @@ final class Iso19139Parser
             $r->addEndpoint($ep);
         }
 
+        // servizio: i dataset che pubblica (uuid del metadato o link al metadato)
+        if ($ident->localName === 'SV_ServiceIdentification') {
+            $r->servesRefs = array_values(array_unique(array_filter(array_map('trim', array_merge(
+                Xml::texts($xp, 'srv:operatesOn/@uuidref | srv:operatesOn/@xlink:href', $ident),
+                Xml::texts($xp, 'srv:coupledResource/srv:SV_CoupledResource/srv:identifier/gco:CharacterString', $ident),
+            )))));
+        }
+
         $r->rawMetadata = $md->ownerDocument->saveXML($md);
         return $r;
     }
