@@ -55,6 +55,8 @@ Dall'interfaccia: pagina **Sorgenti**, pulsante **Raccogli**. Da riga di comando
 php bin\harvest.php 3        raccoglie dalla sorgente con id 3
 php bin\harvest.php --due    tutte le sorgenti attive la cui raccolta e' scaduta
 php bin\harvest.php --all    tutte le sorgenti attive
+php bin\harvest.php 3 -v     con la progressione ogni 100 record (-v=500 ogni 500; -vv un record per riga)
+php bin\harvest.php 3 --completa   raccolta completa anche se sarebbe possibile quella incrementale
 ```
 
 Tipi di sorgente supportati. Il limite di record per raccolta è 25000 per tutti i tipi: si cambia in `config.php` (`harvest.max_records`) oppure per la singola sorgente con il parametro `max_records`.

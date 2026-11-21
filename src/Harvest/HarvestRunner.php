@@ -41,6 +41,13 @@ final class HarvestRunner
      * @param bool $full true: raccolta completa anche se sarebbe possibile quella incrementale
      * @return array riga finale di gwc.harvest_runs
      */
+    /**
+     * Progressione a riga di comando (solo a video, non nel registro della raccolta):
+     * 0 = niente, 1 = una riga ogni $progressEvery record, 2 = una riga per ogni record.
+     */
+    public int $verbosity = 0;
+    public int $progressEvery = 100;
+
     public function run(int $sourceId, ?callable $echo = null, bool $full = false): array
     {
         $st = $this->db->prepare("SELECT * FROM gwc.sources WHERE id = ?");
@@ -87,8 +94,10 @@ final class HarvestRunner
                     . self::fullEvery($p) . " giorni se ne fa una completa)");
             }
             $gen = $factory()->harvest($source, $log);
+            $t0 = microtime(true);
             foreach ($gen as $record) {
                 $found++;
+                $before = [$new, $failed];
                 // ogni record in una transazione: un record difettoso non blocca gli altri
                 $this->db->beginTransaction();
                 try {
@@ -101,6 +110,14 @@ final class HarvestRunner
                     $failed++;
                     $failedRefs[] = $record->recordRef;
                     $log("Record non salvato ({$record->title}): " . $e->getMessage());
+                }
+                if ($echo && $this->verbosity >= 2) {
+                    $what = $failed > $before[1] ? 'ERRORE' : ($new > $before[0] ? 'nuovo ' : 'aggiorn.');
+                    $echo(sprintf('%s   %6d %s %s', date('H:i:s'), $found, $what, mb_substr($record->title, 0, 100)));
+                } elseif ($echo && $this->verbosity === 1 && $found % max(1, $this->progressEvery) === 0) {
+                    $secs = max(0.001, microtime(true) - $t0);
+                    $echo(sprintf('%s   ... %d record letti (nuovi %d, aggiornati %d, errori %d, possibili duplicati %d) - %.1f record/s',
+                                  date('H:i:s'), $found, $new, $updated, $failed, $dups, $found / $secs));
                 }
             }
             if ($failed > 0) {
