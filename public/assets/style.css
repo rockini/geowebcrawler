@@ -76,3 +76,37 @@ button:disabled { opacity: .6; }
 .group h3 { margin: 0 0 .6rem; font-size: 1rem; }
 .group table td, .group table th { font-size: .9rem; }
 .links { margin: 0; padding-left: 1.1rem; }
+
+/* duplicati: confronto, grafo e mappa, regole */
+table.cmp tr.keep td { background: #eef6ee; }
+table.cmp tr.out td { opacity: .45; }
+table.cmp td.diff { background: #fff4d6; }
+.viz { display: grid; grid-template-columns: 3fr 2fr; gap: .8rem; margin-top: .8rem; }
+.graph { height: 420px; border: 1px solid var(--line); border-radius: 6px; background: #fcfcfd; }
+.graph.big { height: 620px; background: var(--card); margin-bottom: 1rem; }
+.gmap { height: 420px; border: 1px solid var(--line); border-radius: 6px; }
+.legend .sw { display: inline-block; width: 1.4rem; height: .3rem; vertical-align: middle; margin: 0 .2rem 0 .6rem; }
+form.rules fieldset { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 1rem; padding: .6rem 1rem; }
+form.rules legend { font-weight: 600; padding: 0 .3rem; }
+form.rules > fieldset > label { display: block; margin: .25rem 0; }
+form.rules .row { display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; margin: .6rem 0; }
+form.rules input[type=number] { width: 5.5rem; }
+@media (max-width: 900px) { .viz { grid-template-columns: 1fr; } }
+table.cmp th:nth-child(-n+2), table.cmp td:nth-child(-n+2) { width: 3.2rem; text-align: center; }
+
+/* SPARQL */
+.tabs { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: .6rem; }
+.inline-details { display: inline-block; }
+.inline-details[open] { display: block; width: 100%; }
+.inline-details summary { list-style: none; cursor: pointer; }
+form.query textarea { width: 100%; font-size: .85rem; line-height: 1.35; padding: .6rem; border: 1px solid #c3cad2; border-radius: 6px; box-sizing: border-box; }
+.small { font-size: .8rem; }
+.err { color: var(--err); }
+tr.sel td { background: #eef5fb; }
+h3.path { font-size: .95rem; margin: 1.2rem 0 .4rem; }
+dl.kv { display: grid; grid-template-columns: 10rem 1fr; gap: .3rem 1rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+.scroll { overflow-x: auto; }
+label.check { display: flex; align-items: center; gap: .3rem; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: .6rem; }

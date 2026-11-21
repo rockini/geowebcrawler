@@ -10,6 +10,8 @@ Strumento in PHP, con interfaccia web su Apache, per **cercare, testare, analizz
 
 Versione estesa futura: riferimenti da feed di riviste, blog e social.
 
+**Dati grandi in file esterni**: i dati scaricati (estrazioni SPARQL e, nei passi successivi, i download) si salvano in file nella cartella `storage_dir` (config.php, default `storage/`). Il database tiene solo i riferimenti (tabella `gwc.files`: percorso relativo, dimensione, sha256, righe). La pagina **SPARQL → File salvati** li elenca.
+
 ## Requisiti
 
 - PHP 8.2 o superiore (sviluppato con 8.5) con le estensioni `pdo_pgsql`, `curl`, `dom`, `mbstring`
@@ -74,6 +76,8 @@ Ogni record trovato viene confrontato con l'archivio: le coppie sospette finisco
 - **Record rimossi**: dopo una raccolta completa letta per intero, i record che la sorgente non contiene più sono segnati come rimossi; la risorsa diventa `removed` quando non è più in nessuna sorgente, e torna attiva se ricompare.
 - **Servizi e dataset collegati**: un servizio che dichiara i dataset che pubblica (`srv:operatesOn`, `dcat:servesDataset`) o un dataset che ha un link a un layer di un servizio già in archivio vengono collegati. Nella scheda si vedono i servizi che mostrano il dataset, e viceversa; un servizio e un dataset collegati non sono proposti come duplicati.
 - **Duplicati a gruppi**: nella pagina **Duplicati** le coppie collegate formano un gruppo; si sceglie la risorsa da tenere e si uniscono tutte le altre in un colpo. I gruppi con lo stesso identificativo si possono unire automaticamente.
+- **Unione automatica con regole**: dalla pagina **Duplicati** → *Unione automatica con regole…* si scelgono le regole (stesso identificativo; stesso URL e titolo simile; titolo quasi uguale con stesso ente e stessa area; titolo identico e stessa area) e le soglie, si guarda l'anteprima e si applica. Una seconda regola scarta le coppie con titolo solo simile, enti diversi e aree lontane. Ogni unione si annulla dalla scheda della risorsa.
+- **Duplicati in grafico**: ogni gruppo ha il pulsante *Grafo e mappa* (risorse come cerchi, coppie come linee colorate per motivo, aree sulla mappa; clic su un cerchio = tieni quella risorsa) e c'e' un grafo di tutti i gruppi della pagina. Nel confronto le celle diverse dalla risorsa tenuta sono evidenziate e si possono escludere dal gruppo le risorse che non c'entrano. Si filtrano i gruppi per parola, motivo e dimensione.
 - **Ricerca**: nella pagina **Risorse** filtri a faccette (tipo, tema INSPIRE, ente, formato, accesso, licenza, sorgente, anno, stato) e ricerca nell'area visibile della mappa.
 - **Enti**: nella pagina **Enti** le varianti dello stesso ente ("REGIONE PIEMONTE - Settore…", "Regione Piemonte (Direzione…)") si riuniscono sotto un ente principale; il programma suggerisce i gruppi con lo stesso nome di base.
 - **Temi INSPIRE**: ogni risorsa riceve i temi INSPIRE riconosciuti dalle parole chiave (etichette e URI del registro INSPIRE, sinonimi italiani e inglesi), dalle categorie ISO o, in mancanza, dal titolo. Le regole sono nella tabella `gwc.theme_rules` e si possono ampliare.
@@ -87,6 +91,7 @@ php bin\index.php links        ricalcola i collegamenti servizio-dataset
 php bin\index.php discover     cerca nuove sorgenti
 php bin\index.php duplicates   ricontrolla i duplicati in tutto l'archivio
 php bin\index.php automerge    unisce i gruppi di duplicati con lo stesso identificativo
+php bin\index.php rules        anteprima delle regole automatiche (--apply unisce, --reject scarta)
 php bin\index.php orgs         riunisce gli enti suggeriti
 ```
 
@@ -94,10 +99,38 @@ php bin\index.php orgs         riunisce gli enti suggeriti
 
 **Se le richieste HTTPS falliscono** con "SSL certificate problem": scarica https://curl.se/ca/cacert.pem e indica il percorso in `config.php` alla voce `http.ca_bundle`.
 
+## SPARQL (es. dati.cultura.gov.it)
+
+La pagina **SPARQL** aiuta a cercare e scaricare dati dagli endpoint SPARQL degli enti pubblici. L'endpoint del Ministero della Cultura (`https://dati.cultura.gov.it/sparql`, server Virtuoso) e' gia' configurato; altri si aggiungono con "+ endpoint".
+
+1. **Cerca gruppi di dati**: scrivi le parole chiave (es. `indirizzi`, `"numeri civici"`, `museo roma`), scegli il tipo di ricerca e, se vuoi, "solo georeferenziabili" (oggetti con coordinate, geometrie, indirizzi o una sede). "Prepara la query" mostra la query SPARQL, che puoi modificare prima di spedirla. I tipi di ricerca:
+   - *oggetti con nome o descrizione che contiene le parole*, raggruppati per classe e grafo (su Virtuoso usa l'indice testuale `bif:contains`, veloce);
+   - *classi* il cui nome contiene le parole (es. `address`, `site`);
+   - *dataset* descritti nel catalogo con DCAT o VoID, con i loro indirizzi di scaricamento.
+   Ogni risultato diventa un **gruppo** salvato nel database (tabella `gwc.sparql_groups`): una classe in un grafo, con numero di oggetti ed esempio.
+2. **Analizza**: per i gruppi spuntati si leggono le proprieta' usate da un campione di oggetti, seguendo fino a tre livelli quelle che portano ad altri oggetti legati ai luoghi (es. *luogo → sede → indirizzo → testo completo, civico* e *sede → lat/long*). Si riconoscono coordinate, geometrie WKT e indirizzi.
+3. **Scegli le colonne** nella scheda del gruppo (sono gia' proposte nomi, coordinate e indirizzi; "esplora" scende di un livello) e **scarica**: CSV con una riga per oggetto (piu' valori nella stessa cella separati da " | ") e, se ci sono coordinate o WKT, anche un **GeoJSON** pronto per QGIS; oppure RDF completo. I dataset del catalogo scaricano il loro file. Si puo' scaricare anche una selezione di gruppi insieme.
+4. **Editor delle query**: modelli pronti (classi piu' usate, grafi, oggetti con coordinate, indirizzi CLV, luoghi Cultural-ON, dataset DCAT), prefissi con un clic, risultati in tabella, salvataggio del risultato in un file o come gruppi.
+
+Lo scaricamento procede a pagine "dopo l'ultimo oggetto ricevuto" (Virtuoso non permette OFFSET alti con ordinamento) e, se il server taglia le risposte (`max_rows`), riduce da solo la pagina. Per gruppi grandi e' meglio la riga di comando:
+
+```
+php bin\sparql.php search 1 "numeri civici" --geo      cerca e salva i gruppi (--show mostra solo la query, --mode=classes|datasets)
+php bin\sparql.php groups 1                           elenca i gruppi
+php bin\sparql.php profile 12                         proprieta' e dati geografici del gruppo 12
+php bin\sparql.php download 12 [--format=rdf] [--max=1000]
+php bin\sparql.php download-selected                  scarica tutti i gruppi selezionati
+php bin\sparql.php query 1 query.rq                   esegue una query scritta in un file
+```
+
+Opzioni dell'endpoint (JSON nella sua scheda): `virtuoso`, `page_size` (oggetti per pagina, default 2000), `max_rows` (default 10000), `timeout` (secondi), `paging` (`"offset"` per server che non accettano le pagine per IRI).
+
 ## Test
 
 ```
 php tests\parsers-test.php                        verifica i parser sui file di esempio (non serve il database)
+php tests\sparql-test.php                         verifica le query SPARQL generate (non serve il database)
+python tests\sparql-mock.py 8098                  finto endpoint SPARQL (pip install rdflib): http://127.0.0.1:8098/sparql
 php -S 127.0.0.1:8765 tests\mock-server.php       catalogo CSW e pagine web simulati, per provare la raccolta
 ```
 
@@ -123,9 +156,11 @@ sql/       script di creazione e aggiornamento del database, in ordine
 src/       codice PHP (namespace GeoWebCrawler)
   Harvest/     lettura di CSW, pagine web, metadati ISO 19139 e Dublin Core
   Http/        client HTTP (cURL)
-  Repository/  salvataggio nel database
+  Repository/  salvataggio nel database, duplicati, enti
+  Sparql/      ricerca, analisi e scaricamento da endpoint SPARQL
+  Storage/     file esterni al database (riferimenti in gwc.files)
   Web/         interfaccia web
 templates/ pagine dell'interfaccia
-storage/   dati scaricati e log
+storage/   file dei dati (sparql/, downloads/) e log
 tests/     test e server simulato
 ```

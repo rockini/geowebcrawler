@@ -7,12 +7,16 @@ declare(strict_types=1);
 //   php bin/index.php discover      cerca nuove sorgenti nei link delle risorse
 //   php bin/index.php duplicates    ricontrolla i duplicati in tutto l'archivio
 //   php bin/index.php automerge     unisce i gruppi di duplicati con lo stesso identificativo
+//   php bin/index.php rules [--apply] [--reject]
+//                                   regole automatiche sui duplicati (vedi pagina "Unione automatica"):
+//                                   senza opzioni mostra solo l'anteprima
 //   php bin/index.php orgs          riunisce gli enti suggeriti (stesso nome di base)
 
 require __DIR__ . '/../src/bootstrap.php';
 
 use GeoWebCrawler\Database;
 use GeoWebCrawler\Repository\DuplicateGroups;
+use GeoWebCrawler\Repository\DuplicateRules;
 use GeoWebCrawler\Repository\Organizations;
 use GeoWebCrawler\Repository\SourceDiscovery;
 
@@ -37,10 +41,23 @@ switch ($cmd) {
         [$g, $n] = (new DuplicateGroups($db))->autoMerge();
         echo "Gruppi uniti: $g, risorse unite: $n", PHP_EOL;
         break;
+    case 'rules':
+        $rules = new DuplicateRules($db);
+        $p = $rules->preview(0);
+        echo "Anteprima: {$p['groups']} gruppi da unire ({$p['resources']} risorse), {$p['skipped']} gruppi troppo grandi saltati, ",
+             "{$p['reject']} coppie da scartare", PHP_EOL;
+        if (in_array('--apply', $argv, true)) {
+            [$g, $n] = $rules->applyMerge();
+            echo "Uniti $g gruppi, $n risorse", PHP_EOL;
+        }
+        if (in_array('--reject', $argv, true)) {
+            echo 'Coppie scartate: ', $rules->applyReject(), PHP_EOL;
+        }
+        break;
     case 'orgs':
         echo 'Enti riuniti: ', (new Organizations($db))->autoMerge(), PHP_EOL;
         break;
     default:
-        fwrite(STDERR, "Uso: php bin/index.php themes|links|discover|duplicates|automerge|orgs\n");
+        fwrite(STDERR, "Uso: php bin/index.php themes|links|discover|duplicates|automerge|rules|orgs\n");
         exit(1);
 }

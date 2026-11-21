@@ -5,6 +5,7 @@ namespace GeoWebCrawler\Web;
 
 use GeoWebCrawler\Harvest\HarvestRunner;
 use GeoWebCrawler\Repository\DuplicateGroups;
+use GeoWebCrawler\Repository\DuplicateRules;
 use GeoWebCrawler\Repository\Organizations;
 use GeoWebCrawler\Repository\SourceDiscovery;
 use GeoWebCrawler\Repository\SourceRepository;
@@ -25,6 +26,11 @@ final class App
         Session::start();
         $page = $_GET['p'] ?? 'home';
 
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sparql_run') {
+            Session::checkCsrf();
+            (new SparqlPages($this->db))->runFromEditor();   // il risultato si mostra subito
+            return;
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Session::checkCsrf();
             try {
@@ -44,8 +50,14 @@ final class App
             'resources'  => $this->resources(),
             'resource'   => $this->resource((int) ($_GET['id'] ?? 0)),
             'duplicates' => $this->duplicates(),
+            'dup_rules'  => $this->duplicateRules(),
             'orgs'       => $this->organizations(),
             'proposals'  => $this->proposals(),
+            'sparql'       => (new SparqlPages($this->db))->index(),
+            'sparql_group' => (new SparqlPages($this->db))->group((int) ($_GET['id'] ?? 0)),
+            'sparql_query' => (new SparqlPages($this->db))->query(),
+            'files'        => (new SparqlPages($this->db))->files(),
+            'file'         => (new SparqlPages($this->db))->file((int) ($_GET['id'] ?? 0)),
             default      => $this->home(),
         };
     }
@@ -152,6 +164,31 @@ final class App
         $byReason = $this->db->query("SELECT reason, count(*) FROM gwc.v_duplicates_pending GROUP BY reason ORDER BY 2 DESC")
                              ->fetchAll(\PDO::FETCH_KEY_PAIR);
         $certain = count(array_filter($all, fn($g) => $g['certain']));
+        $nAll = count($all);
+
+        // filtri sull'elenco dei gruppi
+        $filter = [
+            'reason' => (string) ($_GET['reason'] ?? ''),
+            'size'   => max(0, (int) ($_GET['size'] ?? 0)),
+            'q'      => trim((string) ($_GET['q'] ?? '')),
+        ];
+        if ($filter['reason'] !== '') {
+            $all = array_values(array_filter($all, fn($g) => in_array($filter['reason'], array_column($g['pairs'], 'reason'), true)));
+        }
+        if ($filter['size'] > 0) {
+            $all = array_values(array_filter($all, fn($g) => count($g['ids']) >= $filter['size']));
+        }
+        if ($filter['q'] !== '') {
+            $needle = mb_strtolower($filter['q']);
+            $all = array_values(array_filter($all, function ($g) use ($needle) {
+                foreach ($g['pairs'] as $p) {
+                    if (str_contains(mb_strtolower($p['a_title'] . ' ' . $p['b_title']), $needle)) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
         $perPage = 20;
         $pages = max(1, (int) ceil(count($all) / $perPage));
         $pageNo = min($pages, max(1, (int) ($_GET['n'] ?? 1)));
@@ -161,9 +198,13 @@ final class App
 
         // dettagli delle risorse dei gruppi mostrati (al massimo 60 per gruppo)
         $ids = [];
+        $cands = [];
         foreach ($groups as $g) {
             foreach (array_slice($g['ids'], 0, 60) as $id) {
                 $ids[$id] = true;
+            }
+            foreach ($g['pairs'] as $p) {
+                $cands[] = (int) $p['candidate_id'];
             }
         }
         $details = [];
@@ -175,12 +216,30 @@ final class App
                                                  JOIN gwc.sources s ON s.id = rs.source_id WHERE rs.resource_id = r.id) AS source_names,
                                               CASE WHEN r.bbox IS NULL THEN NULL ELSE
                                                    concat_ws(', ', round(ST_XMin(r.bbox)::numeric, 2), round(ST_YMin(r.bbox)::numeric, 2),
-                                                             round(ST_XMax(r.bbox)::numeric, 2), round(ST_YMax(r.bbox)::numeric, 2)) END AS bbox_txt
+                                                             round(ST_XMax(r.bbox)::numeric, 2), round(ST_YMax(r.bbox)::numeric, 2)) END AS bbox_txt,
+                                              ST_AsGeoJSON(rr.bbox, 4) AS bbox_json
                                          FROM gwc.v_resources r JOIN gwc.resources rr ON rr.id = r.id WHERE r.id IN ($in)") as $d) {
                 $details[$d['id']] = $d;
             }
         }
-        View::render('duplicates', compact('groups', 'total', 'nGroups', 'certain', 'byReason', 'details', 'pageNo', 'pages'), 'Duplicati');
+        // caratteristiche delle coppie mostrate (per il grafo)
+        $features = [];
+        if ($cands) {
+            foreach ($this->db->query("SELECT candidate_id, title_sim, same_org, bbox_overlap, same_url, same_source
+                                         FROM gwc.v_duplicate_features WHERE candidate_id IN (" . implode(',', $cands) . ")") as $f) {
+                $features[$f['candidate_id']] = $f;
+            }
+        }
+        View::render('duplicates', compact('groups', 'total', 'nGroups', 'nAll', 'certain', 'byReason', 'details', 'features',
+                                           'filter', 'pageNo', 'pages'), 'Duplicati');
+    }
+
+    private function duplicateRules(): void
+    {
+        $rules = new DuplicateRules($this->db, $_GET);
+        $preview = isset($_GET['preview']) ? $rules->preview() : null;
+        $o = $rules->options();
+        View::render('dup_rules', compact('o', 'preview'), 'Unione automatica dei duplicati');
     }
 
     private function organizations(): void
@@ -288,6 +347,20 @@ final class App
                 Session::flash("Unione automatica: $g gruppi con lo stesso identificativo, $n risorse unite.");
                 return View::url('duplicates');
 
+            case 'dup_rules_merge':
+                set_time_limit(0);
+                $opts = json_decode((string) ($_POST['options'] ?? '{}'), true) ?: [];
+                [$g, $n] = (new DuplicateRules($this->db, $opts))->applyMerge();
+                Session::flash("Unione automatica: $g gruppi, $n risorse unite. Si possono annullare dalla scheda di ogni risorsa.");
+                return View::url('duplicates');
+
+            case 'dup_rules_reject':
+                set_time_limit(0);
+                $opts = json_decode((string) ($_POST['options'] ?? '{}'), true) ?: [];
+                $n = (new DuplicateRules($this->db, $opts))->applyReject();
+                Session::flash("$n coppie segnate come risorse diverse: non verranno piu' proposte.");
+                return View::url('duplicates');
+
             case 'org_merge':
                 $ids = array_map('intval', (array) ($_POST['ids'] ?? []));
                 $main = (int) ($_POST['main'] ?? 0);
@@ -348,6 +421,10 @@ final class App
                     ->execute([$id]);
                 Session::flash("Risorsa #$id ripristinata come risorsa indipendente.");
                 return View::url('resource', ['id' => $id]);
+        }
+        $r = (new SparqlPages($this->db))->action($action);
+        if ($r !== null) {
+            return $r;
         }
         throw new \InvalidArgumentException("Azione sconosciuta: $action");
     }
