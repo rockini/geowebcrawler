@@ -26,6 +26,11 @@ final class App
         Session::start();
         $page = $_GET['p'] ?? 'home';
 
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sparql_run') {
+            Session::checkCsrf();
+            (new SparqlPages($this->db))->runFromEditor();   // il risultato si mostra subito
+            return;
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Session::checkCsrf();
             try {
@@ -48,6 +53,11 @@ final class App
             'dup_rules'  => $this->duplicateRules(),
             'orgs'       => $this->organizations(),
             'proposals'  => $this->proposals(),
+            'sparql'       => (new SparqlPages($this->db))->index(),
+            'sparql_group' => (new SparqlPages($this->db))->group((int) ($_GET['id'] ?? 0)),
+            'sparql_query' => (new SparqlPages($this->db))->query(),
+            'files'        => (new SparqlPages($this->db))->files(),
+            'file'         => (new SparqlPages($this->db))->file((int) ($_GET['id'] ?? 0)),
             default      => $this->home(),
         };
     }
@@ -411,6 +421,10 @@ final class App
                     ->execute([$id]);
                 Session::flash("Risorsa #$id ripristinata come risorsa indipendente.");
                 return View::url('resource', ['id' => $id]);
+        }
+        $r = (new SparqlPages($this->db))->action($action);
+        if ($r !== null) {
+            return $r;
         }
         throw new \InvalidArgumentException("Azione sconosciuta: $action");
     }

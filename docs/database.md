@@ -84,6 +84,23 @@ Le coppie trovate finiscono in `duplicate_candidates` con stato `pending`. Dall'
 
 Le sorgenti trovate nei link delle risorse hanno `origin = 'discovered'`, sono disattivate e hanno `discovery_status` = `proposed`; diventano `accepted` (e attive) o `ignored` dall'interfaccia. `discovered_count` dice quante risorse citano il servizio.
 
+## Duplicati: regole automatiche
+
+La vista `gwc.v_duplicate_features` calcola per ogni coppia da verificare: somiglianza dei titoli (`title_sim`), titolo identico, stesso tipo, stesso identificativo, URL in comune, stesso ente (contando gli enti riuniti), sovrapposizione delle aree (`bbox_overlap`: area comune / area totale) e stessa sorgente. Le regole di `src/Repository/DuplicateRules.php` usano queste colonne per unire o scartare in automatico, con anteprima.
+
+## File esterni
+
+`gwc.files` contiene i riferimenti ai file salvati fuori dal database, nella cartella `storage_dir`: tipo (`kind`), percorso relativo, tipo MIME, dimensione, sha256, numero di righe e informazioni aggiuntive (`meta`, JSON). `gwc.downloads.file_id` e le tabelle SPARQL puntano qui. Vale per tutti i passi del progetto.
+
+## SPARQL
+
+| Tabella | Contenuto |
+|---|---|
+| `sparql_endpoints` | endpoint (URL e opzioni JSON: `virtuoso`, `page_size`, `max_rows`, `timeout`, `paging`) |
+| `sparql_searches` | ricerche fatte: parole chiave, tipo, query spedita, esito e tempi |
+| `sparql_groups` | gruppi di dati trovati: una classe (`item_iri`) in un grafo (`graph_iri`) oppure un dataset DCAT; numero di oggetti, esempio, parole chiave, dati geografici riconosciuti (`geo`), profilo delle proprieta' (`profile`), colonne scelte (`columns`), selezione |
+| `sparql_downloads` | scaricamenti: formato, colonne, esito, oggetti, pagine, file CSV/RDF e GeoJSON prodotti, registro |
+
 ## Viste per l'interfaccia
 
 - `v_resources`: elenco risorse con licenza, enti, formati, tipi di servizio e numero di punti di accesso funzionanti.
