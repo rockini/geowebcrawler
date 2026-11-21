@@ -43,6 +43,8 @@ Versione estesa futura: riferimenti da feed di riviste, blog e social.
 
 Dopo aver scaricato una nuova versione (`git pull`), lancia di nuovo `php bin\migrate.php`: applica solo le modifiche al database che mancano.
 
+**Ripartire da zero tenendo le sorgenti**: `php bin\rebuild-db.php` salva le sorgenti in `storage\backup\sorgenti-<data>.json`, chiede conferma (scrivi `SI`), cancella tutto lo schema `gwc`, lo ricrea con le migrazioni e reimporta le sorgenti. Con `--export` salva soltanto le sorgenti. I file nella cartella `storage` restano.
+
 ## Raccogliere i riferimenti ai dati
 
 Dall'interfaccia: pagina **Sorgenti**, pulsante **Raccogli**. Da riga di comando:
