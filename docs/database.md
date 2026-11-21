@@ -88,6 +88,16 @@ Le sorgenti trovate nei link delle risorse hanno `origin = 'discovered'`, sono d
 
 La vista `gwc.v_duplicate_features` calcola per ogni coppia da verificare: somiglianza dei titoli (`title_sim`), titolo identico, stesso tipo, stesso identificativo, URL in comune, stesso ente (contando gli enti riuniti), sovrapposizione delle aree (`bbox_overlap`: area comune / area totale) e stessa sorgente. Le regole di `src/Repository/DuplicateRules.php` usano queste colonne per unire o scartare in automatico, con anteprima.
 
+## Verifica dei servizi
+
+| Tabella / colonna | Contenuto |
+|---|---|
+| `endpoints.check_key` | obiettivo della verifica: `wms|<servizio>` per i servizi OGC (un GetCapabilities per tutti i layer), `link|<url>` per gli altri |
+| `endpoints.last_check_*` | ultimo esito del punto di accesso (`ok`, `warn`, `error`) e nota |
+| `check_targets` | ultimo esito di ogni obiettivo: risposta HTTP, tempo, titolo e versione del servizio, numero di layer, verifiche fatte, errori consecutivi, ultima volta funzionante |
+| `endpoint_checks` | storico: una riga per punto di accesso e verifica, con `layer_found` per i layer dei servizi OGC |
+| `check_batches` | verifiche lanciate: filtri usati, stato, avanzamento e conteggi |
+
 ## File esterni
 
 `gwc.files` contiene i riferimenti ai file salvati fuori dal database, nella cartella `storage_dir`: tipo (`kind`), percorso relativo, tipo MIME, dimensione, sha256, numero di righe e informazioni aggiuntive (`meta`, JSON). `gwc.downloads.file_id` e le tabelle SPARQL puntano qui. Vale per tutti i passi del progetto.

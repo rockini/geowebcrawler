@@ -25,6 +25,16 @@ return [
     'harvest' => [
         'max_records' => 25000,
     ],
+    // Verifica dei servizi (pagina "Verifiche" e bin/check.php)
+    'check' => [
+        'concurrency' => 8,      // richieste contemporanee in totale
+        'per_host'    => 2,      // richieste contemporanee verso lo stesso server (per non sovraccaricarlo)
+        'timeout'     => 30,     // secondi massimi per ogni richiesta
+        'slow_ms'     => 15000,  // oltre questo tempo la risposta e' segnalata come lenta
+        // PHP da riga di comando, per far girare in background le verifiche lanciate dall'interfaccia.
+        // Di solito si trova da solo; se la verifica resta "in attesa", indica il percorso, es. 'C:/php/php.exe'
+        'php_cli'     => null,
+    ],
     'http' => [
         'timeout'    => 30,
         // Non usare parole come "crawler", "bot" o "spider": GeoNetwork tratta questi client

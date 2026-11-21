@@ -57,6 +57,8 @@ final class App
             'sparql_group' => (new SparqlPages($this->db))->group((int) ($_GET['id'] ?? 0)),
             'sparql_query' => (new SparqlPages($this->db))->query(),
             'files'        => (new SparqlPages($this->db))->files(),
+            'checks'       => (new CheckPages($this->db))->index(),
+            'check'        => (new CheckPages($this->db))->target((string) ($_GET['key'] ?? '')),
             'file'         => (new SparqlPages($this->db))->file((int) ($_GET['id'] ?? 0)),
             default      => $this->home(),
         };
@@ -422,7 +424,7 @@ final class App
                 Session::flash("Risorsa #$id ripristinata come risorsa indipendente.");
                 return View::url('resource', ['id' => $id]);
         }
-        $r = (new SparqlPages($this->db))->action($action);
+        $r = (new CheckPages($this->db))->action($action) ?? (new SparqlPages($this->db))->action($action);
         if ($r !== null) {
             return $r;
         }

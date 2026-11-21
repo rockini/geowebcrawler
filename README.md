@@ -5,7 +5,7 @@ Strumento in PHP, con interfaccia web su Apache, per **cercare, testare, analizz
 ## Fasi del progetto
 
 1. **Raccolta dei riferimenti**: da cataloghi CSW (ISO 19139, Dublin Core, GeoDCAT-AP), GetCapabilities dei servizi OGC, portali CKAN, cataloghi DCAT-AP/DCAT-AP_IT, cataloghi STAC e pagine web, con metadati standard e gestione dei duplicati. *(fatto)*
-2. **Test di disponibilità**: verifica che link e servizi rispondano davvero.
+2. **Test di disponibilità**: verifica che link e servizi rispondano davvero. *(fatto: pagina Verifiche)*
 3. **Download**: scaricamento dei dati in un archivio locale, con possibile import in PostGIS.
 
 Versione estesa futura: riferimenti da feed di riviste, blog e social.
@@ -101,6 +101,23 @@ php bin\index.php orgs         riunisce gli enti suggeriti
 
 **Se le richieste HTTPS falliscono** con "SSL certificate problem": scarica https://curl.se/ca/cacert.pem e indica il percorso in `config.php` alla voce `http.ca_bundle`.
 
+## Verifica dei servizi
+
+La pagina **Verifiche** controlla se servizi e link funzionano e ricorda l'esito di ogni prova.
+
+- **Cosa si prova**: per i servizi OGC (WMS, WFS, WCS, WMTS, CSW, SOS) si chiede il GetCapabilities una sola volta per servizio, anche se lo usano molte risorse, e si controlla che ogni layer citato dalle risorse ci sia ancora; si leggono titolo, versione e numero di layer. Per gli altri link (file da scaricare, pagine, Atom, ArcGIS REST...) si fa una richiesta HEAD (o GET dei primi byte se il server non accetta HEAD).
+- **Esiti**: *funziona*; *avviso* (layer non piu' presente, accesso riservato 401/403, file atteso ma risponde una pagina HTML, risposta lenta); *non funziona* (server inesistente, nessuna risposta, 404, errore del server, eccezione OGC, risposta non valida).
+- **Scelta**: la tabella in alto riassume gli esiti per tipo (un clic filtra). Si filtra per tipo, esito (mai verificati, con problemi...), sorgente, parte dell'indirizzo, parola nel titolo, giorni dall'ultima verifica; poi si verificano quelli spuntati o tutti quelli del filtro (con un massimo). Si parte dai mai verificati e dai piu' vecchi.
+- **Esecuzione**: poche verifiche si fanno subito; quelle grandi girano in background (la pagina mostra l'avanzamento e si puo' fermare) con piu' richieste in parallelo, al massimo 2 per server. Opzioni in `config.php`, sezione `check`.
+- **Memoria**: ogni servizio o link ha l'ultimo esito, quante volte e' stato provato, da quante volte di seguito non funziona e l'ultima volta che funzionava; la sua scheda mostra lo storico e le risorse che lo usano. Nella scheda di una risorsa c'e' l'esito di ogni punto di accesso e il pulsante "Verifica ora"; nella ricerca delle risorse c'e' il filtro *Verifica dei servizi*.
+
+```
+php bin\check.php --count --status=never                  quanti servizi o link non sono mai stati provati
+php bin\check.php --status=never --limit=5000 -v           li verifica (una riga per verifica con -v)
+php bin\check.php --type=wms,wfs --status=problems         riprova i WMS e WFS con problemi
+php bin\check.php --older=30 --limit=5000                  da pianificare ogni notte: rinfresca gli esiti vecchi di 30 giorni
+```
+
 ## SPARQL (es. dati.cultura.gov.it)
 
 La pagina **SPARQL** aiuta a cercare e scaricare dati dagli endpoint SPARQL degli enti pubblici. L'endpoint del Ministero della Cultura (`https://dati.cultura.gov.it/sparql`, server Virtuoso) e' gia' configurato; altri si aggiungono con "+ endpoint".
@@ -159,6 +176,7 @@ src/       codice PHP (namespace GeoWebCrawler)
   Harvest/     lettura di CSW, pagine web, metadati ISO 19139 e Dublin Core
   Http/        client HTTP (cURL)
   Repository/  salvataggio nel database, duplicati, enti
+  Check/       verifica della disponibilita' di servizi e link
   Sparql/      ricerca, analisi e scaricamento da endpoint SPARQL
   Storage/     file esterni al database (riferimenti in gwc.files)
   Web/         interfaccia web

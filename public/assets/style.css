@@ -110,3 +110,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .scroll { overflow-x: auto; }
 label.check { display: flex; align-items: center; gap: .3rem; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: .6rem; }
+
+/* verifiche */
+.st.warn, .st.queued, .st.stopping, .st.stopped { background: #fff1da; color: var(--warn); }
+.st.done { background: #e3f3e4; color: var(--ok); }
+a.st { text-decoration: none; }
+.bar { height: .5rem; background: #e7edf3; border-radius: 4px; margin: .5rem 0; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--accent); }
+table.summary { width: auto; min-width: 40rem; margin-bottom: 1rem; }
+table.summary tr.total td { font-weight: 600; }
+.warn-text { color: var(--warn); }
