@@ -1,0 +1,2 @@
+{"type": "Catalog", "id": "sub", "stac_version": "1.0.0", "description": "Sotto-catalogo",
+ "links": [{"rel": "child", "href": "./ortofoto/collection.json"}, {"rel": "parent", "href": "../catalog.json"}]}

@@ -3,6 +3,9 @@
 /config/sources.json
 /storage/downloads/*
 /storage/logs/*
+/storage/sparql/*
+/storage/files/*
+/storage/backup/*
 !/storage/**/.gitkeep
 .idea/
 .vscode/

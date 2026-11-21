@@ -1,0 +1,6 @@
+{"collections": [
+  {"type": "Collection", "id": "dem-italia", "stac_version": "1.0.0", "title": "DEM Italia 10 m", "description": "Modello digitale di elevazione.",
+   "license": "CC-BY-4.0", "extent": {"spatial": {"bbox": [[6.6, 35.5, 18.5, 47.1]]}, "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-12-31T00:00:00Z"]]}},
+   "assets": {"mosaic": {"href": "https://data.example.org/dem/italia_10m.tif", "type": "image/tiff; application=geotiff; profile=cloud-optimized", "title": "Mosaico COG"}},
+   "links": [{"rel": "self", "href": "http://127.0.0.1:8765/stac/collections/dem-italia"}]}],
+ "links": [{"rel": "prev", "href": "http://127.0.0.1:8765/stac/collections"}]}
