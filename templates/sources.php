@@ -1,5 +1,11 @@
 <?php use GeoWebCrawler\Web\View as V; ?>
 <h1>Sorgenti</h1>
+<?php if ($proposed): ?>
+  <div class="flash warn">Ci sono <b><?= (int) $proposed ?></b> nuove sorgenti trovate nei link delle risorse raccolte.
+    <a href="<?= V::url('proposals') ?>">Vedi le proposte</a></div>
+<?php else: ?>
+  <p><a href="<?= V::url('proposals') ?>">Sorgenti proposte</a> <span class="muted">(servizi e cataloghi trovati nei link delle risorse)</span></p>
+<?php endif; ?>
 <table>
   <tr><th>Nome</th><th>Tipo</th><th>URL</th><th class="num">Risorse</th><th>Ultima raccolta</th><th>Attiva</th><th></th></tr>
   <?php foreach ($sources as $s): ?>

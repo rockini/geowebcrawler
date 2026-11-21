@@ -148,6 +148,11 @@ final class DcatMapper
                 }
             }
         }
+        // un dcat:DataService dichiara i dataset che pubblica
+        $r->servesRefs = array_values(array_unique(array_merge(
+            array_filter($g->uris($s, Graph::DCAT . 'servesDataset'), fn($u) => !str_starts_with($u, '_:')),
+            array_filter(array_map(fn($u) => $g->value($u, Graph::DCT . 'identifier'), $g->uris($s, Graph::DCAT . 'servesDataset'))),
+        )));
         // un dcat:DataService ha l'indirizzo direttamente su di se'
         foreach ($g->uris($s, Graph::DCAT . 'endpointURL') as $u) {
             $this->addEndpoint($r, $u, null, $g->value($s, Graph::DCT . 'conformsTo'), null, false);

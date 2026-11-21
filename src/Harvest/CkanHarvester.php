@@ -17,6 +17,9 @@ use GeoWebCrawler\Http\HttpClient;
  *   fq           filtro Solr aggiuntivo, es. "organization:regione-toscana"
  *   max_records  numero massimo di dataset (default: harvest.max_records in config.php, 25000)
  *   page_size    dataset per richiesta (default 100, massimo 1000)
+ *   incremental  false: sempre raccolta completa (di default si chiedono solo i dataset con
+ *                metadata_modified successivo all'ultima raccolta)
+ *   full_every_days ogni quanti giorni fare comunque una raccolta completa (default 30)
  */
 final class CkanHarvester implements Harvester
 {
@@ -52,6 +55,9 @@ final class CkanHarvester implements Harvester
         $fq = [];
         if (!empty($p['fq'])) {
             $fq[] = '(' . $p['fq'] . ')';
+        }
+        if (!empty($source['since'])) {
+            $fq[] = 'metadata_modified:[' . $source['since'] . 'T00:00:00Z TO *]';
         }
         if ($geoOnly) {
             $fq[] = 'res_format:(' . implode(' OR ', array_map(fn($f) => '"' . $f . '"', self::GEO_FORMATS)) . ')';

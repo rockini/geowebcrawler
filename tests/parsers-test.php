@@ -22,7 +22,9 @@ $doc = Xml::load(file_get_contents(__DIR__ . '/fixtures/iso_records.xml'));
 $xp = Xml::xpath($doc);
 $recs = [];
 foreach ($xp->query('/*/gmd:MD_Metadata') as $md) { $recs[] = (new Iso19139Parser())->parse($xp, $md); }
-check('ISO: record letti', count($recs), 3);
+check('ISO: record letti', count($recs), 4);
+check('ISO: servizio', $recs[3]->resourceType, 'service');
+check('ISO: operatesOn', $recs[3]->servesRefs, ['r_toscan:ctr10k', 'https://geo.example.it/csw?service=CSW&request=GetRecordById&id=r_toscan:idro']);
 check('ISO: titolo', $recs[0]->title, 'Carta Tecnica Regionale 1:10.000 - Toscana');
 check('ISO: data pubblicazione', $recs[0]->datePublished, '2019-01-15');
 check('ISO: data revisione', $recs[0]->dateRevised, '2024-11-30');

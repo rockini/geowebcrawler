@@ -51,8 +51,19 @@ final class ResourceRepository
             "INSERT INTO gwc.resource_sources (resource_id, source_id, record_ref, first_run_id, last_run_id)
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT (resource_id, source_id, record_ref)
-             DO UPDATE SET last_run_id = EXCLUDED.last_run_id, last_seen_at = now()"
+             DO UPDATE SET last_run_id = EXCLUDED.last_run_id, last_seen_at = now(), removed_at = NULL"
         )->execute([$id, $sourceId, $r->recordRef, $runId, $runId]);
+        // era stata segnata come rimossa dalla sorgente ed e' ricomparsa
+        $this->db->prepare("UPDATE gwc.resources SET status = 'active' WHERE id = ? AND status = 'removed'")->execute([$id]);
+
+        // servizio: riferimenti ai dataset pubblicati (risolti a fine raccolta con gwc.resolve_links)
+        if ($r->servesRefs) {
+            $ref = $this->db->prepare("INSERT INTO gwc.resource_link_refs (resource_id, ref) VALUES (?, ?) ON CONFLICT DO NOTHING");
+            foreach ($r->servesRefs as $u) {
+                $ref->execute([$id, mb_substr($u, 0, 2000)]);
+            }
+        }
+        $this->db->prepare("SELECT gwc.assign_themes(?)")->execute([$id]);
 
         $dup = $this->db->prepare("SELECT gwc.detect_duplicates(?)");
         $dup->execute([$id]);

@@ -21,6 +21,7 @@ final class SourceRepository
                 ON CONFLICT (url_key) DO UPDATE
                    SET name = EXCLUDED.name, source_type = EXCLUDED.source_type,
                        params = EXCLUDED.params, enabled = EXCLUDED.enabled,
+                       discovery_status = CASE WHEN gwc.sources.discovery_status IS NULL THEN NULL ELSE 'accepted' END,
                        description = COALESCE(EXCLUDED.description, gwc.sources.description)
                 RETURNING id, (xmax = 0) AS inserted";
         $st = $this->db->prepare($sql);
@@ -40,7 +41,9 @@ final class SourceRepository
     {
         return $this->db->query(
             "SELECT s.*, (SELECT count(*) FROM gwc.resource_sources rs WHERE rs.source_id = s.id) AS n_resources
-               FROM gwc.sources s ORDER BY s.name"
+               FROM gwc.sources s
+              WHERE s.discovery_status IS NULL OR s.discovery_status = 'accepted'
+              ORDER BY s.name"
         )->fetchAll();
     }
 }

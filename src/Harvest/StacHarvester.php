@@ -79,6 +79,7 @@ final class StacHarvester implements Harvester
             $queue[] = [$u, 1];
         }
         $visited = [$rootUrl => true];
+        $complete = true;
         $requests = 1;
         while ($queue && $read < $max && $requests < $maxRequests) {
             [$u, $depth] = array_shift($queue);
@@ -91,6 +92,7 @@ final class StacHarvester implements Harvester
                 $node = $this->getJson($u);
             } catch (\RuntimeException $e) {
                 $log("Ignorato $u: " . $e->getMessage());
+                $complete = false;
                 continue;
             }
             if (($node['type'] ?? '') === 'Collection') {
@@ -106,6 +108,7 @@ final class StacHarvester implements Harvester
         if ($requests >= $maxRequests) {
             $log("Raggiunto il limite di $maxRequests richieste (parametro max_requests)");
         }
+        return $complete && !$queue;
     }
 
     public function toRecord(array $c, string $url): Record

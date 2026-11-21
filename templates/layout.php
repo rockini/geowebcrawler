@@ -11,8 +11,8 @@
 <header>
   <a class="brand" href="?">GeoWebCrawler</a>
   <nav>
-    <?php foreach (['home' => 'Riepilogo', 'sources' => 'Sorgenti', 'resources' => 'Risorse', 'duplicates' => 'Duplicati'] as $p => $label): ?>
-      <a href="<?= V::url($p) ?>" class="<?= $cur === $p || ($cur === 'source' && $p === 'sources') || ($cur === 'resource' && $p === 'resources') ? 'on' : '' ?>"><?= $label ?></a>
+    <?php foreach (['home' => 'Riepilogo', 'sources' => 'Sorgenti', 'resources' => 'Risorse', 'duplicates' => 'Duplicati', 'orgs' => 'Enti', 'sparql' => 'SPARQL'] as $p => $label): ?>
+      <a href="<?= V::url($p) ?>" class="<?= $cur === $p || (in_array($cur, ['source', 'proposals'], true) && $p === 'sources') || ($cur === 'resource' && $p === 'resources') || ($cur === 'dup_rules' && $p === 'duplicates') || (in_array($cur, ['sparql_group', 'sparql_query', 'files'], true) && $p === 'sparql') ? 'on' : '' ?>"><?= $label ?></a>
     <?php endforeach; ?>
   </nav>
 </header>

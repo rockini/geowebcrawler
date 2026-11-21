@@ -32,6 +32,7 @@ final class OgcCapabilitiesHarvester implements Harvester
         $services = array_map('strtoupper', (array) ($p['services'] ?? ($fromUrl ? [$fromUrl] : self::ALL)));
         $max = max(1, (int) ($p['max_records'] ?? \GeoWebCrawler\Config::get('harvest.max_records', 25000)));
         $found = 0;
+        $complete = true;
 
         foreach ($services as $svc) {
             if (!in_array($svc, self::ALL, true)) {
@@ -44,6 +45,8 @@ final class OgcCapabilitiesHarvester implements Harvester
             $root = $doc?->documentElement;
             if ($root === null || !preg_match('~Capabilities$~', $root->localName)) {
                 $log("$svc: nessun GetCapabilities valido (" . ($res->ok() ? 'risposta non riconosciuta' : $res->problem()) . ')');
+                // errore di rete o del server: i layer di questo servizio non vanno considerati rimossi
+                $complete = $complete && $res->status !== 0 && $res->status < 500;
                 continue;
             }
             $found++;
@@ -53,6 +56,7 @@ final class OgcCapabilitiesHarvester implements Harvester
         if ($found === 0) {
             throw new \RuntimeException('Nessun servizio OGC ha risposto a GetCapabilities');
         }
+        return $complete;
     }
 
     /** Analizza un documento GetCapabilities gia' scaricato. */

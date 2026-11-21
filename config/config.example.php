@@ -13,6 +13,11 @@ return [
     'sources_file' => __DIR__ . '/sources.json',
     // Cartella dove salvare i dati scaricati (fase 3)
     'download_dir' => __DIR__ . '/../storage/downloads',
+    // Cartella dei file esterni (estrazioni SPARQL e altri dati grandi): nel database restano solo i
+    // riferimenti (tabella gwc.files, percorsi relativi a questa cartella). Puo' stare anche su un altro disco.
+    'storage_dir' => __DIR__ . '/../storage',
+    // Separatore dei file CSV prodotti (',' standard; ';' se li apri con Excel in italiano)
+    'csv_separator' => ',',
     // Fuso orario per date e orari mostrati nell'interfaccia
     'timezone' => 'Europe/Rome',
     // Numero massimo di record letti da una sorgente in una raccolta, se la sorgente
