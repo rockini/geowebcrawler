@@ -26,7 +26,7 @@ foreach ($data['sources'] ?? [] as $i => $s) {
     }
     [$id, $isNew] = $repo->upsert(
         $s['name'], $s['type'], $s['url'], $s['params'] ?? [],
-        $s['enabled'] ?? true, 'config', $s['description'] ?? null
+        $s['enabled'] ?? true, $s['origin'] ?? 'config', $s['description'] ?? null
     );
     $isNew ? $new++ : $updated++;
     printf("%s  #%d  %s\n", $isNew ? 'nuova    ' : 'aggiorn. ', $id, $s['name']);
