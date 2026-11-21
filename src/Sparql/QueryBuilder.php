@@ -110,10 +110,22 @@ final class QueryBuilder
         return $n !== '' && $n !== null ? $n : $iri;
     }
 
+    /**
+     * Radice di una parola italiana: senza la vocale finale, cosi' "musei" trova anche "museo" e "museale",
+     * "indirizzi" anche "indirizzo". Solo per parole singole di almeno 5 lettere.
+     */
+    public static function stem(string $w): string
+    {
+        if (str_contains($w, ' ') || mb_strlen($w) < 5) {
+            return $w;
+        }
+        return (string) preg_replace('/[aeiouàèéìòù]$/u', '', $w);
+    }
+
     /** Filtro: il testo di ?var contiene tutte le parole (senza distinguere maiuscole). */
     private function containsAll(string $var, array $words): string
     {
-        return implode(' && ', array_map(fn($w) => "CONTAINS(LCASE(STR($var)), " . self::literal($w) . ')', $words));
+        return implode(' && ', array_map(fn($w) => "CONTAINS(LCASE(STR($var)), " . self::literal(self::stem($w)) . ')', $words));
     }
 
     /** Espressione per bif:contains di Virtuoso (indice testuale): 'parola*' AND 'altra*'. */
@@ -124,7 +136,8 @@ final class QueryBuilder
             $w = preg_replace("/['\"*]/u", ' ', $w);
             $w = trim(preg_replace('/\s+/u', ' ', (string) $w));
             // il carattere jolly richiede almeno 4 lettere prima dell'asterisco
-            $parts[] = "'" . $w . (mb_strlen($w) >= 4 && !str_contains($w, ' ') ? '*' : '') . "'";
+            $st = self::stem($w);
+            $parts[] = "'" . (mb_strlen($st) >= 4 && !str_contains($st, ' ') ? $st . '*' : $w) . "'";
         }
         return self::literal(implode(' AND ', $parts));
     }
@@ -162,16 +175,16 @@ final class QueryBuilder
      */
     public function searchText(array $words, bool $geoOnly = false, int $limit = 200): string
     {
+        // Virtuoso vuole bif:contains nello stesso gruppo { } del triple pattern che lega ?t
         $match = $this->virtuoso
-            ? "  ?t bif:contains " . $this->bifExpression($words) . " .\n"
-            : "  FILTER (" . $this->containsAll('?t', $words) . ")\n";
+            ? "    ?t bif:contains " . $this->bifExpression($words) . " .\n"
+            : "    FILTER (" . $this->containsAll('?t', $words) . ")\n";
         $q = "# Oggetti con nome, titolo o descrizione che contiene: " . implode(', ', $words) . "\n"
            . "# raggruppati per classe e grafo\n"
            . "SELECT ?g ?class (COUNT(DISTINCT ?s) AS ?n) (SAMPLE(?s) AS ?esempio) (SAMPLE(?t) AS ?testo)\n"
            . "WHERE {\n"
            . "  VALUES ?tp { " . implode(' ', self::TEXT_PROPS) . " }\n"
-           . "  GRAPH ?g { ?s ?tp ?t . ?s a ?class }\n"
-           . $match
+           . "  GRAPH ?g {\n    ?s ?tp ?t .\n" . $match . "    ?s a ?class .\n  }\n"
            . ($geoOnly ? $this->geoFilter('?s') : '')
            . "}\nGROUP BY ?g ?class\nORDER BY DESC(?n)\nLIMIT $limit";
         return self::withPrefixes($q);

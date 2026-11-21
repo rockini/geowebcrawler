@@ -27,9 +27,11 @@ check('forma breve', QB::short('http://dati.beniculturali.it/cis/hasSite'), 'cis
 check('letterale', QB::literal('a "b" \\c'), '"a \\"b\\" \\\\c"');
 
 $v = (new QB(true))->searchText(['numeri', 'via']);
-check('Virtuoso usa bif:contains', str_contains($v, "?t bif:contains \"'numeri*' AND 'via'\""), true);
+check('Virtuoso usa bif:contains', str_contains($v, "?t bif:contains \"'numer*' AND 'via'\""), true);
+check('bif:contains nello stesso gruppo del triple pattern', (bool) preg_match('/GRAPH \?g \{\s*\?s \?tp \?t \.\s*\?t bif:contains/', $v), true);
+check('radice italiana', [QB::stem('musei'), QB::stem('indirizzi'), QB::stem('via'), QB::stem('numeri civici')], ['muse', 'indirizz', 'via', 'numeri civici']);
 $s = (new QB(false))->searchText(['museo']);
-check('SPARQL standard usa CONTAINS', str_contains($s, 'CONTAINS(LCASE(STR(?t)), "museo")'), true);
+check('SPARQL standard usa CONTAINS', str_contains($s, 'CONTAINS(LCASE(STR(?t)), "muse")'), true);
 check('prefissi solo quelli usati', str_contains($s, 'PREFIX rdfs:') && !str_contains($s, 'PREFIX arco:'), true);
 check('filtro geo', str_contains((new QB())->searchClasses(['address'], true), 'FILTER EXISTS { ?s ?gp ?gx'), true);
 
